@@ -131,15 +131,15 @@ class LmStudioSeedRetryTests(unittest.TestCase):
         self.assertIn("request failed (400)", str(ctx.exception))
 
     def test_missing_native_endpoint_still_raises_upgrade_message(self):
-        def urlopen_side_effect(request, timeout=None):
-            raise make_http_error(404, {"error": {"message": "not found"}})
+         def urlopen_side_effect(request, timeout=None):
+             raise make_http_error(404, {"error": {"message": "not found"}})
 
-        payload = {"lmstudio_base_url": "http://127.0.0.1:1234/v1", "lmstudio_model": "test-model", "seed": 42}
-        with mock.patch("urllib.request.urlopen", side_effect=urlopen_side_effect):
-            run_chat = LM_STUDIO_HELPERS["_run_lm_studio_native_chat"]
-            with self.assertRaises(RuntimeError) as ctx:
-                run_chat(payload, "hello", 0.7, 0.9, 500, 30, "")
-        self.assertIn("native /api/v1/chat endpoint is required", str(ctx.exception))
+         payload = {"lmstudio_base_url": "http://127.0.0.1:1234/v1", "lmstudio_model": "test-model", "seed": 42}
+         with mock.patch("urllib.request.urlopen", side_effect=urlopen_side_effect):
+             run_chat = LM_STUDIO_HELPERS["_run_lm_studio_native_chat"]
+             with self.assertRaises(RuntimeError) as ctx:
+                 run_chat(payload, "hello", 0.7, 0.9, 500, 30, "")
+         self.assertIn("request failed (404)", str(ctx.exception))
 
 
 if __name__ == "__main__":

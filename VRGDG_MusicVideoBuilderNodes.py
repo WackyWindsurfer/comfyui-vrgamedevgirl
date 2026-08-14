@@ -3335,6 +3335,16 @@ def _lm_studio_api_root(payload):
 
 
 def _lm_studio_native_output_text(data):
+    """Extract text from either LM Studio native or OpenAI-compatible response."""
+    # --- OpenAI /chat/completions format ---
+    choices = data.get("choices") if isinstance(data, dict) else None
+    if isinstance(choices, list) and choices:
+        msg = choices[0].get("message") if isinstance(choices[0], dict) else None
+        if isinstance(msg, dict):
+            content = msg.get("content")
+            if isinstance(content, str) and content.strip():
+                return content.strip()
+    # --- LM Studio native /api/v1/chat format ---
     output = data.get("output") if isinstance(data, dict) else None
     if not isinstance(output, list):
         return ""
@@ -3364,25 +3374,71 @@ def _run_lm_studio_native_chat(payload, input_value, temperature, top_p, max_new
         raise ValueError("LM Studio base URL is empty.")
     if not model:
         raise ValueError(f"Enter the LM Studio {label}model name shown in LM Studio.")
-    body = {
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    seed = payload.get("seed")
+    max_tokens = _runner_output_token_limit(payload, max_new_tokens)
+
+    # --- Build OpenAI /chat/completions body ---
+    if isinstance(input_value, list):
+        openai_content = []
+        for item in input_value:
+            if isinstance(item, dict) and item.get("type") == "image":
+                openai_content.append({
+                    "type": "image_url",
+                    "image_url": {"url": item.get("data_url", "")},
+                })
+            elif isinstance(item, dict) and item.get("type") == "message":
+                openai_content.append({
+                    "type": "text",
+                    "text": item.get("content", ""),
+                })
+            else:
+                openai_content.append(item)
+        openai_messages = [{"role": "user", "content": openai_content}]
+    else:
+        openai_messages = [{"role": "user", "content": input_value}]
+    openai_body = {
+        "model": model,
+        "messages": openai_messages,
+        "temperature": float(temperature),
+        "top_p": float(top_p),
+        "max_tokens": max_tokens,
+    }
+    if seed is not None:
+        openai_body["seed"] = int(seed)
+
+    # --- Build LM Studio native /api/v1/chat body ---
+    native_body = {
         "model": model,
         "input": input_value,
         "temperature": float(temperature),
         "top_p": float(top_p),
         "context_length": _lm_studio_context_limit(payload),
-        "max_output_tokens": _runner_output_token_limit(payload, max_new_tokens),
+        "max_output_tokens": max_tokens,
         "store": False,
         "stream": False,
     }
-    if payload.get("seed") is not None:
-        body["seed"] = int(payload.get("seed"))
-    headers = {"Content-Type": "application/json"}
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
+    if seed is not None:
+        native_body["seed"] = int(seed)
 
-    def _post(request_body):
+    def _post_openai(body=None):
         request = urllib.request.Request(
-            f"{api_root}/api/v1/chat",
+            f"{api_root}/v1/chat/completions",
+            data=json.dumps(body or openai_body).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=float(timeout)) as response:
+            return json.loads(response.read().decode("utf-8", errors="replace"))
+
+    def _post_native(request_body):
+        # LM Studio native endpoint: /api/v1/chat when base is bare (e.g. http://localhost:1234),
+        # /api/chat when base already ends in /v1 (e.g. http://host:8080/v1).
+        native_suffix = "/api/chat" if api_root.endswith("/v1") else "/api/v1/chat"
+        request = urllib.request.Request(
+            f"{api_root}{native_suffix}",
             data=json.dumps(request_body).encode("utf-8"),
             headers=headers,
             method="POST",
@@ -3390,19 +3446,35 @@ def _run_lm_studio_native_chat(payload, input_value, temperature, top_p, max_new
         with urllib.request.urlopen(request, timeout=float(timeout)) as response:
             return json.loads(response.read().decode("utf-8", errors="replace"))
 
+    # Try OpenAI endpoint first, then fall back to LM Studio native
     try:
-        data = _post(body)
+        data = _post_openai()
     except urllib.error.HTTPError as exc:
         details = exc.read().decode("utf-8", errors="replace") if hasattr(exc, "read") else ""
         if exc.code in {404, 405}:
-            raise RuntimeError(
-                "LM Studio's native /api/v1/chat endpoint is required to apply per-request context and output limits. "
-                "Update LM Studio and make sure its Local Server is running."
-            ) from exc
-        if "seed" in body and "unrecognized_keys" in details.lower() and "seed" in details.lower():
-            retry_body = {key: value for key, value in body.items() if key != "seed"}
+            # Fall back to LM Studio native endpoint
             try:
-                data = _post(retry_body)
+                data = _post_native(native_body)
+            except urllib.error.HTTPError as native_exc:
+                native_details = native_exc.read().decode("utf-8", errors="replace") if hasattr(native_exc, "read") else ""
+                if "seed" in native_body and "unrecognized_keys" in native_details.lower() and "seed" in native_details.lower():
+                    retry_body = {key: value for key, value in native_body.items() if key != "seed"}
+                    try:
+                        data = _post_native(retry_body)
+                    except urllib.error.HTTPError as retry_exc:
+                        retry_details = retry_exc.read().decode("utf-8", errors="replace") if hasattr(retry_exc, "read") else ""
+                        raise RuntimeError(f"LM Studio {label}request failed ({retry_exc.code}): {retry_details or retry_exc.reason}") from retry_exc
+                    except urllib.error.URLError as retry_exc:
+                        raise RuntimeError(f"Could not connect to LM Studio at {api_root}. Make sure LM Studio's local server is running.") from retry_exc
+                else:
+                    raise RuntimeError(f"LM Studio {label}request failed ({native_exc.code}): {native_details or native_exc.reason}") from native_exc
+            except urllib.error.URLError as native_exc:
+                raise RuntimeError(f"Could not connect to LM Studio at {api_root}. Make sure LM Studio's local server is running.") from native_exc
+        elif "seed" in openai_body and "unrecognized_keys" in details.lower() and "seed" in details.lower():
+            # OpenAI endpoint rejects seed — retry without it
+            retry_body = {key: value for key, value in openai_body.items() if key != "seed"}
+            try:
+                data = _post_openai(retry_body)
             except urllib.error.HTTPError as retry_exc:
                 retry_details = retry_exc.read().decode("utf-8", errors="replace") if hasattr(retry_exc, "read") else ""
                 raise RuntimeError(f"LM Studio {label}request failed ({retry_exc.code}): {retry_details or retry_exc.reason}") from retry_exc
