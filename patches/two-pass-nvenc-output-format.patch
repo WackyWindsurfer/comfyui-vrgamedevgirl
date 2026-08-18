@@ -58,7 +58,7 @@ index 485950f..8a71f5c 100644
      output_folder, filename_prefix = _minimax_h3_output_location(project_folder, scene_number)
      _set_api_input(prompt, "142", "filename_prefix", f"{filename_prefix}_stage2")
 diff --git a/web/VRGDG_MusicVideoBuilderUI.js b/web/VRGDG_MusicVideoBuilderUI.js
-index 8b69f64..ae9945d 100644
+index 8b69f64..e400a65 100644
 --- a/web/VRGDG_MusicVideoBuilderUI.js
 +++ b/web/VRGDG_MusicVideoBuilderUI.js
 @@ -271,6 +271,9 @@ const DEFAULT_MINIMAX_H3_SETTINGS = {
@@ -123,7 +123,6 @@ index 8b69f64..ae9945d 100644
 +  miniMaxTwoPassOutputBitrate.min = "1"; miniMaxTwoPassOutputBitrate.max = "999"; miniMaxTwoPassOutputBitrate.step = "1";
 +  const miniMaxTwoPassOutputCrfField = makeField("Output CRF", miniMaxTwoPassOutputCrf);
 +  const miniMaxTwoPassOutputBitrateField = makeField("Output bitrate (Mbit/s)", miniMaxTwoPassOutputBitrate);
-+  const miniMaxTwoPassOutputBitDepthField = makeField("Output bit depth", miniMaxTwoPassOutputBitDepth);
 +  const miniMaxTwoPassOutputModeNote = document.createElement("div");
 +  miniMaxTwoPassOutputModeNote.textContent = "CRF-based encoders (H.264/H.265) use Output CRF; NVENC (GPU) encoders use Output bitrate instead. The unused field is ignored automatically.";
 +  miniMaxTwoPassOutputModeNote.style.cssText = "font-size:11px;color:#a1a1aa;line-height:1.45;";
@@ -134,6 +133,7 @@ index 8b69f64..ae9945d 100644
 +  const miniMaxTwoPassOutputBitDepthNote = document.createElement("div");
 +  miniMaxTwoPassOutputBitDepthNote.textContent = "10-bit encodes as a Main10 stream. The Builder feeds 8-bit frames, so for H.264/HEVC 10-bit is mainly a Main10 compatibility choice; AV1 WebM and FFV1 MKV always encode 10-bit regardless.";
 +  miniMaxTwoPassOutputBitDepthNote.style.cssText = "font-size:11px;color:#a1a1aa;line-height:1.45;";
++  const miniMaxTwoPassOutputBitDepthField = makeField("Output bit depth", miniMaxTwoPassOutputBitDepth);
 +  const syncMiniMaxTwoPassOutputFields = () => {
 +    const bitrateBased = isBitrateBasedOutputFormat(miniMaxTwoPassOutputFormat.value);
 +    const fixedDepth = isFixedDepthOutputFormat(miniMaxTwoPassOutputFormat.value);
