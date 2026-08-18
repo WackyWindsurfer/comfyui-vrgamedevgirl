@@ -3315,6 +3315,15 @@ def _build_minimax_h3_2pass_api_prompt(payload):
     }:
         raise ValueError(f"Unsupported MiniMax H3 two-pass output format: {output_format}")
     _set_api_input(prompt, "142", "format", output_format)
+    output_bit_depth = str(payload.get("output_bit_depth") or "8").strip()
+    if output_bit_depth not in {"8", "10"}:
+        raise ValueError(f"Unsupported MiniMax H3 two-pass output bit depth: {output_bit_depth}")
+    if output_bit_depth == "8":
+        output_pix_fmt = "yuv420p"
+    else:
+        # 10-bit 4:2:0: NVENC encoders name it p010le, libx264/libx265 name it yuv420p10le.
+        output_pix_fmt = "p010le" if output_format.startswith("video/nvenc") else "yuv420p10le"
+    _set_api_input(prompt, "142", "pix_fmt", output_pix_fmt)
     _set_api_input(prompt, "142", "crf", _int_payload(payload, "output_crf", 19, 0, 100))
     _set_api_input(prompt, "142", "bitrate", _int_payload(payload, "output_bitrate", 10, 1, 999))
     output_folder, filename_prefix = _minimax_h3_output_location(project_folder, scene_number)
