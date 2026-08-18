@@ -60,7 +60,7 @@ index db5ef1e..8a71f5c 100644
      _set_api_input(prompt, "142", "filename_prefix", f"{filename_prefix}_stage2")
      return {
 diff --git a/web/VRGDG_MusicVideoBuilderUI.js b/web/VRGDG_MusicVideoBuilderUI.js
-index 6f51edb..ae9945d 100644
+index 6f51edb..e400a65 100644
 --- a/web/VRGDG_MusicVideoBuilderUI.js
 +++ b/web/VRGDG_MusicVideoBuilderUI.js
 @@ -344,7 +344,10 @@ const MINIMAX_H3_OUTPUT_FORMAT_OPTIONS = [
@@ -90,21 +90,14 @@ index 6f51edb..ae9945d 100644
  }
  
  function normalizeMiniMaxH3Mode(value) {
-@@ -5909,6 +5919,7 @@ function openBuilder(node) {
-   miniMaxTwoPassOutputBitrate.min = "1"; miniMaxTwoPassOutputBitrate.max = "999"; miniMaxTwoPassOutputBitrate.step = "1";
-   const miniMaxTwoPassOutputCrfField = makeField("Output CRF", miniMaxTwoPassOutputCrf);
-   const miniMaxTwoPassOutputBitrateField = makeField("Output bitrate (Mbit/s)", miniMaxTwoPassOutputBitrate);
-+  const miniMaxTwoPassOutputBitDepthField = makeField("Output bit depth", miniMaxTwoPassOutputBitDepth);
-   const miniMaxTwoPassOutputModeNote = document.createElement("div");
-   miniMaxTwoPassOutputModeNote.textContent = "CRF-based encoders (H.264/H.265) use Output CRF; NVENC (GPU) encoders use Output bitrate instead. The unused field is ignored automatically.";
-   miniMaxTwoPassOutputModeNote.style.cssText = "font-size:11px;color:#a1a1aa;line-height:1.45;";
-@@ -5917,12 +5928,14 @@ function openBuilder(node) {
+@@ -5917,12 +5927,15 @@ function openBuilder(node) {
      { value: "10", label: "10-bit (p010le / yuv420p10le, Main10)" },
    ], DEFAULT_MINIMAX_H3_SETTINGS.two_pass_output_bit_depth);
    const miniMaxTwoPassOutputBitDepthNote = document.createElement("div");
 -  miniMaxTwoPassOutputBitDepthNote.textContent = "10-bit encodes as a Main10 HEVC/AV1/HEVC-10 stream. The Builder feeds 8-bit frames, so 10-bit mainly improves compatibility for Main10 targets rather than measurable quality.";
 +  miniMaxTwoPassOutputBitDepthNote.textContent = "10-bit encodes as a Main10 stream. The Builder feeds 8-bit frames, so for H.264/HEVC 10-bit is mainly a Main10 compatibility choice; AV1 WebM and FFV1 MKV always encode 10-bit regardless.";
    miniMaxTwoPassOutputBitDepthNote.style.cssText = "font-size:11px;color:#a1a1aa;line-height:1.45;";
++  const miniMaxTwoPassOutputBitDepthField = makeField("Output bit depth", miniMaxTwoPassOutputBitDepth);
    const syncMiniMaxTwoPassOutputFields = () => {
      const bitrateBased = isBitrateBasedOutputFormat(miniMaxTwoPassOutputFormat.value);
 +    const fixedDepth = isFixedDepthOutputFormat(miniMaxTwoPassOutputFormat.value);
