@@ -278,6 +278,7 @@ const DEFAULT_MINIMAX_H3_SETTINGS = {
   two_pass_output_crf: 19,
   two_pass_output_format: "video/h264-mp4",
   two_pass_output_bitrate: 10,
+  two_pass_output_bit_depth: "8",
   three_pass_lightx_lora_name: "minimax_h3_fl2v_lightx2v_turbo_4step_v0.1_comfy_resized_avg_rank_21_bf16.safetensors",
   three_pass_lightx_lora_strength: 0.5,
   two_pass_pass1_megapixels: 0.5,
@@ -640,6 +641,7 @@ function cloneMiniMaxH3Settings(value = {}) {
     })),
     two_pass_output_format: normalizeMiniMaxH3OutputFormat(source.two_pass_output_format ?? DEFAULT_MINIMAX_H3_SETTINGS.two_pass_output_format),
     two_pass_output_bitrate: Math.max(1, Math.min(999, Math.trunc(Number(source.two_pass_output_bitrate ?? DEFAULT_MINIMAX_H3_SETTINGS.two_pass_output_bitrate)))),
+    two_pass_output_bit_depth: String(source.two_pass_output_bit_depth ?? DEFAULT_MINIMAX_H3_SETTINGS.two_pass_output_bit_depth) === "10" ? "10" : "8",
     ...Object.fromEntries([1, 2].flatMap((pass) => {
       const prefix = `two_pass_pass${pass}_`;
       const defaults = DEFAULT_MINIMAX_H3_SETTINGS;
@@ -6391,6 +6393,13 @@ function openBuilder(node) {
   const miniMaxTwoPassOutputModeNote = document.createElement("div");
   miniMaxTwoPassOutputModeNote.textContent = "CRF-based encoders (H.264/H.265) use Output CRF; NVENC (GPU) encoders use Output bitrate instead. The unused field is ignored automatically.";
   miniMaxTwoPassOutputModeNote.style.cssText = "font-size:11px;color:#a1a1aa;line-height:1.45;";
+  const miniMaxTwoPassOutputBitDepth = makeSelect([
+    { value: "8", label: "8-bit (yuv420p)" },
+    { value: "10", label: "10-bit (p010le / yuv420p10le, Main10)" },
+  ], DEFAULT_MINIMAX_H3_SETTINGS.two_pass_output_bit_depth);
+  const miniMaxTwoPassOutputBitDepthNote = document.createElement("div");
+  miniMaxTwoPassOutputBitDepthNote.textContent = "10-bit encodes as a Main10 HEVC/AV1/HEVC-10 stream. The Builder feeds 8-bit frames, so 10-bit mainly improves compatibility for Main10 targets rather than measurable quality.";
+  miniMaxTwoPassOutputBitDepthNote.style.cssText = "font-size:11px;color:#a1a1aa;line-height:1.45;";
   const syncMiniMaxTwoPassOutputFields = () => {
     const bitrateBased = isBitrateBasedOutputFormat(miniMaxTwoPassOutputFormat.value);
     miniMaxTwoPassOutputCrfField.style.display = bitrateBased ? "none" : "";
@@ -6433,6 +6442,8 @@ function openBuilder(node) {
       miniMaxTwoPassOutputModeNote,
       miniMaxTwoPassOutputCrfField,
       miniMaxTwoPassOutputBitrateField,
+      makeField("Output bit depth", miniMaxTwoPassOutputBitDepth),
+      miniMaxTwoPassOutputBitDepthNote,
     ], false),
   ], false);
   miniMaxTwoPassSettings.style.display = "none";
@@ -7865,6 +7876,7 @@ function openBuilder(node) {
       two_pass_output_crf: miniMaxTwoPassOutputCrf.value,
       two_pass_output_format: miniMaxTwoPassOutputFormat.value,
       two_pass_output_bitrate: miniMaxTwoPassOutputBitrate.value,
+      two_pass_output_bit_depth: miniMaxTwoPassOutputBitDepth.value,
       three_pass_lightx_lora_name: miniMaxThreePassLoraPicker.input.value,
       three_pass_lightx_lora_strength: miniMaxThreePassLoraStrength.value,
       advanced_two_pass_vram_preset: miniMaxAdvancedVramPreset.value,
@@ -8591,6 +8603,7 @@ function openBuilder(node) {
     miniMaxTwoPassOutputCrf.value = String(settings.two_pass_output_crf);
     miniMaxTwoPassOutputFormat.value = normalizeMiniMaxH3OutputFormat(settings.two_pass_output_format);
     miniMaxTwoPassOutputBitrate.value = String(settings.two_pass_output_bitrate);
+    miniMaxTwoPassOutputBitDepth.value = String(settings.two_pass_output_bit_depth) === "10" ? "10" : "8";
     syncMiniMaxTwoPassOutputFields();
     miniMaxThreePassLoraPicker.input.value = settings.three_pass_lightx_lora_name;
     miniMaxThreePassLoraStrength.value = String(settings.three_pass_lightx_lora_strength);
@@ -46660,6 +46673,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         output_crf: (twoPass || threePass) ? miniMaxSettings.two_pass_output_crf : undefined,
         output_format: twoPass ? miniMaxSettings.two_pass_output_format : undefined,
         output_bitrate: twoPass ? miniMaxSettings.two_pass_output_bitrate : undefined,
+        output_bit_depth: twoPass ? miniMaxSettings.two_pass_output_bit_depth : undefined,
         three_pass_lightx_lora_name: miniMaxSettings.three_pass_lightx_lora_name,
         three_pass_lightx_lora_strength: miniMaxSettings.three_pass_lightx_lora_strength,
         pass1_steps: twoPass ? (requestedTwoPassSteps?.pass1 ?? miniMaxSettings.two_pass_pass1_steps) : threePass ? (requestedTwoPassSteps?.pass1 ?? miniMaxSettings.advanced_two_pass_pass1_steps) : miniMaxSettings.steps,
