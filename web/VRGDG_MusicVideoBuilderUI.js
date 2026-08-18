@@ -5919,7 +5919,6 @@ function openBuilder(node) {
   miniMaxTwoPassOutputBitrate.min = "1"; miniMaxTwoPassOutputBitrate.max = "999"; miniMaxTwoPassOutputBitrate.step = "1";
   const miniMaxTwoPassOutputCrfField = makeField("Output CRF", miniMaxTwoPassOutputCrf);
   const miniMaxTwoPassOutputBitrateField = makeField("Output bitrate (Mbit/s)", miniMaxTwoPassOutputBitrate);
-  const miniMaxTwoPassOutputBitDepthField = makeField("Output bit depth", miniMaxTwoPassOutputBitDepth);
   const miniMaxTwoPassOutputModeNote = document.createElement("div");
   miniMaxTwoPassOutputModeNote.textContent = "CRF-based encoders (H.264/H.265) use Output CRF; NVENC (GPU) encoders use Output bitrate instead. The unused field is ignored automatically.";
   miniMaxTwoPassOutputModeNote.style.cssText = "font-size:11px;color:#a1a1aa;line-height:1.45;";
@@ -5930,6 +5929,7 @@ function openBuilder(node) {
   const miniMaxTwoPassOutputBitDepthNote = document.createElement("div");
   miniMaxTwoPassOutputBitDepthNote.textContent = "10-bit encodes as a Main10 stream. The Builder feeds 8-bit frames, so for H.264/HEVC 10-bit is mainly a Main10 compatibility choice; AV1 WebM and FFV1 MKV always encode 10-bit regardless.";
   miniMaxTwoPassOutputBitDepthNote.style.cssText = "font-size:11px;color:#a1a1aa;line-height:1.45;";
+  const miniMaxTwoPassOutputBitDepthField = makeField("Output bit depth", miniMaxTwoPassOutputBitDepth);
   const syncMiniMaxTwoPassOutputFields = () => {
     const bitrateBased = isBitrateBasedOutputFormat(miniMaxTwoPassOutputFormat.value);
     const fixedDepth = isFixedDepthOutputFormat(miniMaxTwoPassOutputFormat.value);
