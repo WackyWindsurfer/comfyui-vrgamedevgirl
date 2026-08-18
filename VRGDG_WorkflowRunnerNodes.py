@@ -3305,7 +3305,18 @@ def _build_minimax_h3_2pass_api_prompt(payload):
         _set_api_input(prompt, node_id, "model", list(pass2_model))
 
     _set_api_input(prompt, "183", "upscale_method", str(payload.get("final_resize_method") or "nvidia_rtx_vsr"))
+    output_format = str(payload.get("output_format") or "video/h264-mp4").strip()
+    if output_format not in {
+        "video/h264-mp4",
+        "video/h265-mp4",
+        "video/nvenc_h264-mp4",
+        "video/nvenc_hevc-mp4",
+        "video/nvenc_av1-mp4",
+    }:
+        raise ValueError(f"Unsupported MiniMax H3 two-pass output format: {output_format}")
+    _set_api_input(prompt, "142", "format", output_format)
     _set_api_input(prompt, "142", "crf", _int_payload(payload, "output_crf", 19, 0, 100))
+    _set_api_input(prompt, "142", "bitrate", _int_payload(payload, "output_bitrate", 10, 1, 999))
     output_folder, filename_prefix = _minimax_h3_output_location(project_folder, scene_number)
     _set_api_input(prompt, "142", "filename_prefix", f"{filename_prefix}_stage2")
     return {
