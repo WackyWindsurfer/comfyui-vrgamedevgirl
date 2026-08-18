@@ -1,8 +1,8 @@
 diff --git a/VRGDG_WorkflowRunnerNodes.py b/VRGDG_WorkflowRunnerNodes.py
-index 485950f..6789d85 100644
+index 485950f..db5ef1e 100644
 --- a/VRGDG_WorkflowRunnerNodes.py
 +++ b/VRGDG_WorkflowRunnerNodes.py
-@@ -3305,7 +3305,18 @@ def _build_minimax_h3_2pass_api_prompt(payload):
+@@ -3305,7 +3305,27 @@ def _build_minimax_h3_2pass_api_prompt(payload):
          _set_api_input(prompt, node_id, "model", list(pass2_model))
  
      _set_api_input(prompt, "183", "upscale_method", str(payload.get("final_resize_method") or "nvidia_rtx_vsr"))
@@ -16,25 +16,35 @@ index 485950f..6789d85 100644
 +    }:
 +        raise ValueError(f"Unsupported MiniMax H3 two-pass output format: {output_format}")
 +    _set_api_input(prompt, "142", "format", output_format)
++    output_bit_depth = str(payload.get("output_bit_depth") or "8").strip()
++    if output_bit_depth not in {"8", "10"}:
++        raise ValueError(f"Unsupported MiniMax H3 two-pass output bit depth: {output_bit_depth}")
++    if output_bit_depth == "8":
++        output_pix_fmt = "yuv420p"
++    else:
++        # 10-bit 4:2:0: NVENC encoders name it p010le, libx264/libx265 name it yuv420p10le.
++        output_pix_fmt = "p010le" if output_format.startswith("video/nvenc") else "yuv420p10le"
++    _set_api_input(prompt, "142", "pix_fmt", output_pix_fmt)
      _set_api_input(prompt, "142", "crf", _int_payload(payload, "output_crf", 19, 0, 100))
 +    _set_api_input(prompt, "142", "bitrate", _int_payload(payload, "output_bitrate", 10, 1, 999))
      output_folder, filename_prefix = _minimax_h3_output_location(project_folder, scene_number)
      _set_api_input(prompt, "142", "filename_prefix", f"{filename_prefix}_stage2")
      return {
 diff --git a/web/VRGDG_MusicVideoBuilderUI.js b/web/VRGDG_MusicVideoBuilderUI.js
-index 8b69f64..275420b 100644
+index 8b69f64..6f51edb 100644
 --- a/web/VRGDG_MusicVideoBuilderUI.js
 +++ b/web/VRGDG_MusicVideoBuilderUI.js
-@@ -271,6 +271,8 @@ const DEFAULT_MINIMAX_H3_SETTINGS = {
+@@ -271,6 +271,9 @@ const DEFAULT_MINIMAX_H3_SETTINGS = {
    two_pass_te_speed_device: "auto",
    two_pass_final_resize_method: "nvidia_rtx_vsr",
    two_pass_output_crf: 19,
 +  two_pass_output_format: "video/h264-mp4",
 +  two_pass_output_bitrate: 10,
++  two_pass_output_bit_depth: "8",
    three_pass_lightx_lora_name: "minimax_h3_fl2v_lightx2v_turbo_4step_v0.1_comfy_resized_avg_rank_21_bf16.safetensors",
    three_pass_lightx_lora_strength: 0.5,
    two_pass_pass1_megapixels: 0.5,
-@@ -337,6 +339,22 @@ const MINIMAX_H3_SAGE_ATTENTION_OPTIONS = [
+@@ -337,6 +340,22 @@ const MINIMAX_H3_SAGE_ATTENTION_OPTIONS = [
    { value: "sageattn3_per_block_mean", label: "SageAttention 3 — Per-block mean" },
  ];
  
@@ -57,16 +67,17 @@ index 8b69f64..275420b 100644
  function normalizeMiniMaxH3Mode(value) {
    const clean = String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
    return MINIMAX_H3_MODE_OPTIONS.some((item) => item.value === clean) ? clean : "text_to_video";
-@@ -508,6 +526,8 @@ function cloneMiniMaxH3Settings(value = {}) {
+@@ -508,6 +527,9 @@ function cloneMiniMaxH3Settings(value = {}) {
      two_pass_te_speed_device: String(source.two_pass_te_speed_device || DEFAULT_MINIMAX_H3_SETTINGS.two_pass_te_speed_device),
      two_pass_final_resize_method: String(source.two_pass_final_resize_method || DEFAULT_MINIMAX_H3_SETTINGS.two_pass_final_resize_method),
      two_pass_output_crf: Math.max(0, Math.min(100, Math.trunc(Number(source.two_pass_output_crf ?? DEFAULT_MINIMAX_H3_SETTINGS.two_pass_output_crf)))),
 +    two_pass_output_format: normalizeMiniMaxH3OutputFormat(source.two_pass_output_format ?? DEFAULT_MINIMAX_H3_SETTINGS.two_pass_output_format),
 +    two_pass_output_bitrate: Math.max(1, Math.min(999, Math.trunc(Number(source.two_pass_output_bitrate ?? DEFAULT_MINIMAX_H3_SETTINGS.two_pass_output_bitrate)))),
++    two_pass_output_bit_depth: String(source.two_pass_output_bit_depth ?? DEFAULT_MINIMAX_H3_SETTINGS.two_pass_output_bit_depth) === "10" ? "10" : "8",
      ...Object.fromEntries([1, 2].flatMap((pass) => {
        const prefix = `two_pass_pass${pass}_`;
        const defaults = DEFAULT_MINIMAX_H3_SETTINGS;
-@@ -5882,6 +5902,21 @@ function openBuilder(node) {
+@@ -5882,6 +5904,28 @@ function openBuilder(node) {
    const miniMaxTwoPassResizeMethod = makeSelect(["nvidia_rtx_vsr", "lanczos", "bicubic", "bilinear", "nearest-exact"], DEFAULT_MINIMAX_H3_SETTINGS.two_pass_final_resize_method);
    const miniMaxTwoPassOutputCrf = makeInput(String(DEFAULT_MINIMAX_H3_SETTINGS.two_pass_output_crf), "number");
    miniMaxTwoPassOutputCrf.min = "0"; miniMaxTwoPassOutputCrf.max = "100"; miniMaxTwoPassOutputCrf.step = "1";
@@ -78,6 +89,13 @@ index 8b69f64..275420b 100644
 +  const miniMaxTwoPassOutputModeNote = document.createElement("div");
 +  miniMaxTwoPassOutputModeNote.textContent = "CRF-based encoders (H.264/H.265) use Output CRF; NVENC (GPU) encoders use Output bitrate instead. The unused field is ignored automatically.";
 +  miniMaxTwoPassOutputModeNote.style.cssText = "font-size:11px;color:#a1a1aa;line-height:1.45;";
++  const miniMaxTwoPassOutputBitDepth = makeSelect([
++    { value: "8", label: "8-bit (yuv420p)" },
++    { value: "10", label: "10-bit (p010le / yuv420p10le, Main10)" },
++  ], DEFAULT_MINIMAX_H3_SETTINGS.two_pass_output_bit_depth);
++  const miniMaxTwoPassOutputBitDepthNote = document.createElement("div");
++  miniMaxTwoPassOutputBitDepthNote.textContent = "10-bit encodes as a Main10 HEVC/AV1/HEVC-10 stream. The Builder feeds 8-bit frames, so 10-bit mainly improves compatibility for Main10 targets rather than measurable quality.";
++  miniMaxTwoPassOutputBitDepthNote.style.cssText = "font-size:11px;color:#a1a1aa;line-height:1.45;";
 +  const syncMiniMaxTwoPassOutputFields = () => {
 +    const bitrateBased = isBitrateBasedOutputFormat(miniMaxTwoPassOutputFormat.value);
 +    miniMaxTwoPassOutputCrfField.style.display = bitrateBased ? "none" : "";
@@ -88,7 +106,7 @@ index 8b69f64..275420b 100644
    const miniMaxTwoPassSpeedNote = document.createElement("div");
    miniMaxTwoPassSpeedNote.textContent = "The selected Turbo LoRA is applied ONLY to pass 2 and makes the refinement pass MUCH faster. TE-Speed is separate optional acceleration for the model path; uncheck it to bypass the OSS speed node completely.";
    miniMaxTwoPassSpeedNote.style.cssText = "font-size:11px;color:#facc15;line-height:1.45;";
-@@ -5910,7 +5945,10 @@ function openBuilder(node) {
+@@ -5910,7 +5954,12 @@ function openBuilder(node) {
      ], false),
      makeSettingsSection("Output Advanced", [
        makeField("Final resize method", miniMaxTwoPassResizeMethod),
@@ -97,34 +115,39 @@ index 8b69f64..275420b 100644
 +      miniMaxTwoPassOutputModeNote,
 +      miniMaxTwoPassOutputCrfField,
 +      miniMaxTwoPassOutputBitrateField,
++      makeField("Output bit depth", miniMaxTwoPassOutputBitDepth),
++      miniMaxTwoPassOutputBitDepthNote,
      ], false),
    ], false);
    miniMaxTwoPassSettings.style.display = "none";
-@@ -7220,6 +7258,8 @@ function openBuilder(node) {
+@@ -7220,6 +7269,9 @@ function openBuilder(node) {
        two_pass_te_speed_device: miniMaxTwoPassTeDevice.value,
        two_pass_final_resize_method: miniMaxTwoPassResizeMethod.value,
        two_pass_output_crf: miniMaxTwoPassOutputCrf.value,
 +      two_pass_output_format: miniMaxTwoPassOutputFormat.value,
 +      two_pass_output_bitrate: miniMaxTwoPassOutputBitrate.value,
++      two_pass_output_bit_depth: miniMaxTwoPassOutputBitDepth.value,
        three_pass_lightx_lora_name: miniMaxThreePassLoraPicker.input.value,
        three_pass_lightx_lora_strength: miniMaxThreePassLoraStrength.value,
        ...Object.fromEntries(twoPassControls.flatMap((control) => [
-@@ -7914,6 +7954,9 @@ function openBuilder(node) {
+@@ -7914,6 +7966,10 @@ function openBuilder(node) {
      miniMaxTwoPassTeDevice.value = settings.two_pass_te_speed_device;
      miniMaxTwoPassResizeMethod.value = settings.two_pass_final_resize_method;
      miniMaxTwoPassOutputCrf.value = String(settings.two_pass_output_crf);
 +    miniMaxTwoPassOutputFormat.value = normalizeMiniMaxH3OutputFormat(settings.two_pass_output_format);
 +    miniMaxTwoPassOutputBitrate.value = String(settings.two_pass_output_bitrate);
++    miniMaxTwoPassOutputBitDepth.value = String(settings.two_pass_output_bit_depth) === "10" ? "10" : "8";
 +    syncMiniMaxTwoPassOutputFields();
      miniMaxThreePassLoraPicker.input.value = settings.three_pass_lightx_lora_name;
      miniMaxThreePassLoraStrength.value = String(settings.three_pass_lightx_lora_strength);
      twoPassControls.forEach((control) => {
-@@ -45075,6 +45118,8 @@ Chrome vault corridor = Sealed industrial passage...</pre>
+@@ -45075,6 +45131,9 @@ Chrome vault corridor = Sealed industrial passage...</pre>
          te_speed_device: twoPass ? miniMaxSettings.two_pass_te_speed_device : undefined,
          final_resize_method: twoPass ? miniMaxSettings.two_pass_final_resize_method : undefined,
          output_crf: twoPass ? miniMaxSettings.two_pass_output_crf : undefined,
 +        output_format: twoPass ? miniMaxSettings.two_pass_output_format : undefined,
 +        output_bitrate: twoPass ? miniMaxSettings.two_pass_output_bitrate : undefined,
++        output_bit_depth: twoPass ? miniMaxSettings.two_pass_output_bit_depth : undefined,
          three_pass_lightx_lora_name: miniMaxSettings.three_pass_lightx_lora_name,
          three_pass_lightx_lora_strength: miniMaxSettings.three_pass_lightx_lora_strength,
          pass1_steps: twoPass ? miniMaxSettings.two_pass_pass1_steps : miniMaxSettings.steps,
