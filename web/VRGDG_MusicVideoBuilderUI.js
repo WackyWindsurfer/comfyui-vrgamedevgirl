@@ -344,7 +344,10 @@ const MINIMAX_H3_OUTPUT_FORMAT_OPTIONS = [
   { value: "video/h264-mp4", label: "H.264 MP4 (libx264, CRF)" },
   { value: "video/nvenc_h264-mp4", label: "NVENC H.264 MP4 (bitrate, GPU)" },
   { value: "video/nvenc_hevc-mp4", label: "NVENC HEVC MP4 (bitrate, GPU)" },
+  { value: "video/nvenc_av1-mp4", label: "NVENC AV1 MP4 (bitrate, GPU)" },
   { value: "video/h265-mp4", label: "HEVC MP4 (libx265, CRF)" },
+  { value: "video/av1-webm", label: "AV1 WebM (SVT, 10-bit)" },
+  { value: "video/ffv1-mkv", label: "FFV1 MKV (lossless 10-bit master)" },
 ];
 
 function normalizeMiniMaxH3OutputFormat(value) {
@@ -353,7 +356,14 @@ function normalizeMiniMaxH3OutputFormat(value) {
 }
 
 function isBitrateBasedOutputFormat(format) {
-  return normalizeMiniMaxH3OutputFormat(format).startsWith("video/nvenc");
+  const clean = normalizeMiniMaxH3OutputFormat(format);
+  return clean.startsWith("video/nvenc") || clean === "video/av1-webm";
+}
+
+function isFixedDepthOutputFormat(format) {
+  // AV1 WebM and FFV1 MKV always encode 10-bit; the bit-depth field does not apply.
+  const clean = normalizeMiniMaxH3OutputFormat(format);
+  return clean === "video/av1-webm" || clean === "video/ffv1-mkv";
 }
 
 function normalizeMiniMaxH3Mode(value) {
@@ -5909,6 +5919,7 @@ function openBuilder(node) {
   miniMaxTwoPassOutputBitrate.min = "1"; miniMaxTwoPassOutputBitrate.max = "999"; miniMaxTwoPassOutputBitrate.step = "1";
   const miniMaxTwoPassOutputCrfField = makeField("Output CRF", miniMaxTwoPassOutputCrf);
   const miniMaxTwoPassOutputBitrateField = makeField("Output bitrate (Mbit/s)", miniMaxTwoPassOutputBitrate);
+  const miniMaxTwoPassOutputBitDepthField = makeField("Output bit depth", miniMaxTwoPassOutputBitDepth);
   const miniMaxTwoPassOutputModeNote = document.createElement("div");
   miniMaxTwoPassOutputModeNote.textContent = "CRF-based encoders (H.264/H.265) use Output CRF; NVENC (GPU) encoders use Output bitrate instead. The unused field is ignored automatically.";
   miniMaxTwoPassOutputModeNote.style.cssText = "font-size:11px;color:#a1a1aa;line-height:1.45;";
@@ -5917,12 +5928,14 @@ function openBuilder(node) {
     { value: "10", label: "10-bit (p010le / yuv420p10le, Main10)" },
   ], DEFAULT_MINIMAX_H3_SETTINGS.two_pass_output_bit_depth);
   const miniMaxTwoPassOutputBitDepthNote = document.createElement("div");
-  miniMaxTwoPassOutputBitDepthNote.textContent = "10-bit encodes as a Main10 HEVC/AV1/HEVC-10 stream. The Builder feeds 8-bit frames, so 10-bit mainly improves compatibility for Main10 targets rather than measurable quality.";
+  miniMaxTwoPassOutputBitDepthNote.textContent = "10-bit encodes as a Main10 stream. The Builder feeds 8-bit frames, so for H.264/HEVC 10-bit is mainly a Main10 compatibility choice; AV1 WebM and FFV1 MKV always encode 10-bit regardless.";
   miniMaxTwoPassOutputBitDepthNote.style.cssText = "font-size:11px;color:#a1a1aa;line-height:1.45;";
   const syncMiniMaxTwoPassOutputFields = () => {
     const bitrateBased = isBitrateBasedOutputFormat(miniMaxTwoPassOutputFormat.value);
+    const fixedDepth = isFixedDepthOutputFormat(miniMaxTwoPassOutputFormat.value);
     miniMaxTwoPassOutputCrfField.style.display = bitrateBased ? "none" : "";
     miniMaxTwoPassOutputBitrateField.style.display = bitrateBased ? "" : "none";
+    miniMaxTwoPassOutputBitDepthField.style.display = fixedDepth ? "none" : "";
   };
   miniMaxTwoPassOutputFormat.addEventListener("change", syncMiniMaxTwoPassOutputFields);
   syncMiniMaxTwoPassOutputFields();
@@ -5958,7 +5971,7 @@ function openBuilder(node) {
       miniMaxTwoPassOutputModeNote,
       miniMaxTwoPassOutputCrfField,
       miniMaxTwoPassOutputBitrateField,
-      makeField("Output bit depth", miniMaxTwoPassOutputBitDepth),
+      makeField("Output bit depth", miniMaxTwoPassOutputBitDepthField),
       miniMaxTwoPassOutputBitDepthNote,
     ], false),
   ], false);

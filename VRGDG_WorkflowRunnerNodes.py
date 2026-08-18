@@ -3312,20 +3312,48 @@ def _build_minimax_h3_2pass_api_prompt(payload):
         "video/nvenc_h264-mp4",
         "video/nvenc_hevc-mp4",
         "video/nvenc_av1-mp4",
+        "video/av1-webm",
+        "video/ffv1-mkv",
     }:
         raise ValueError(f"Unsupported MiniMax H3 two-pass output format: {output_format}")
-    _set_api_input(prompt, "142", "format", output_format)
+    # VHS format widgets the runner must pass explicitly (VHS cannot derive
+    # them from the node inputs alone):
+    # - bitrate formats (NVENC, AV1-webm): 'megabit' selects M vs K suffix;
+    #   VHS defaults a missing BOOLEAN widget to False, so it must be set.
+    # - 'av1-webm'/'ffv1-mkv': 'input_color_depth' is a mandatory format
+    #   widget (the 16-bit frame path).
     output_bit_depth = str(payload.get("output_bit_depth") or "8").strip()
     if output_bit_depth not in {"8", "10"}:
         raise ValueError(f"Unsupported MiniMax H3 two-pass output bit depth: {output_bit_depth}")
-    if output_bit_depth == "8":
-        output_pix_fmt = "yuv420p"
-    else:
-        # 10-bit 4:2:0: NVENC encoders name it p010le, libx264/libx265 name it yuv420p10le.
-        output_pix_fmt = "p010le" if output_format.startswith("video/nvenc") else "yuv420p10le"
-    _set_api_input(prompt, "142", "pix_fmt", output_pix_fmt)
+    is_nvenc = output_format.startswith("video/nvenc")
+    is_master = output_format in {"video/av1-webm", "video/ffv1-mkv"}
+    # VHS format widgets must be passed explicitly for API-prompt execution
+    # (there is no node UI to resolve them):
+    # - bitrate (Mbit/s) + megabit for the NVENC formats.
+    # - input_color_depth "16bit" for the 16-bit frame path (av1-webm, ffv1-mkv).
+    if is_nvenc:
+        _set_api_input(prompt, "142", "bitrate", _int_payload(payload, "output_bitrate", 10, 1, 999))
+        _set_api_input(prompt, "142", "megabit", True)
+    if is_master:
+        _set_api_input(prompt, "142", "input_color_depth", "16bit")
+    _set_api_input(prompt, "142", "format", output_format)
+    if output_format == "video/ffv1-mkv":
+        # Lossless 10-bit master: FFV1 in MKV, FLAC audio.
+        _set_api_input(prompt, "142", "pix_fmt", "yuv420p10le")
+    elif output_format == "video/av1-webm":
+        # 10-bit SVT-AV1 in WebM, Opus audio; 16-bit frames preserve precision.
+        _set_api_input(prompt, "142", "pix_fmt", "yuv420p10le")
+    elif is_nvenc and output_bit_depth == "10":
+        # NVENC 10-bit 4:2:0 is p010le.
+        _set_api_input(prompt, "142", "pix_fmt", "p010le")
+    elif is_nvenc:
+        # 8-bit: keep yuv420p, the template default (VHS's NVENC lists
+        # also default to it).
+        _set_api_input(prompt, "142", "pix_fmt", "yuv420p")
+    elif output_bit_depth == "10":
+        # libx264/libx265 10-bit 4:2:0.
+        _set_api_input(prompt, "142", "pix_fmt", "yuv420p10le")
     _set_api_input(prompt, "142", "crf", _int_payload(payload, "output_crf", 19, 0, 100))
-    _set_api_input(prompt, "142", "bitrate", _int_payload(payload, "output_bitrate", 10, 1, 999))
     output_folder, filename_prefix = _minimax_h3_output_location(project_folder, scene_number)
     _set_api_input(prompt, "142", "filename_prefix", f"{filename_prefix}_stage2")
     return {
