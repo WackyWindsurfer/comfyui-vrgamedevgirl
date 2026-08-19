@@ -227,6 +227,91 @@ def _t2v_25_api_template_path():
     )
 
 
+def _minimax_h3_vhs_format_dir():
+    """Locate the VideoHelperSuite video_formats directory used to validate
+    Builder output-format choices. Falls back to None when VHS is not installed
+    (e.g. repo-only test runs); callers then skip format-level validation."""
+    vhs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "comfyui-videohelpersuite", "video_formats")
+    if os.path.isdir(vhs_dir):
+        return os.path.abspath(vhs_dir)
+    return None
+
+
+def _load_vhs_format_spec(format_name):
+    """Load a VHS format JSON (e.g. 'ffv1-mkv') by its format id."""
+    format_dir = _minimax_h3_vhs_format_dir()
+    if format_dir is None:
+        return None
+    path = os.path.join(format_dir, f"{format_name}.json")
+    if not os.path.isfile(path):
+        return None
+    with open(path, "r", encoding="utf-8") as stream:
+        return json.load(stream)
+
+
+def _minimax_h3_output_format_inputs(payload):
+    """Validate the global MiniMax H3 output-format settings against VHS and
+    return the (format, pix_fmt, profile) values to apply to the VideoCombine
+    output node. Defaults preserve the previous h264-mp4 / yuv420p behavior."""
+    fmt = str(_first_payload_value(payload, "output_format", default="video/h264-mp4") or "video/h264-mp4").strip()
+    if not fmt.startswith("video/"):
+        raise ValueError(f"MiniMax H3 output format must be a video format (video/<name>), got '{fmt}'.")
+    fmt_name = fmt.split("/", 1)[1]
+    spec = _load_vhs_format_spec(fmt_name)
+    if spec is None:
+        if _minimax_h3_vhs_format_dir() is None:
+            print(f"[VRGDG WorkflowRunner] VHS video_formats not found; skipping output-format validation for '{fmt}'.")
+            return fmt, "", ""
+        available = sorted(f[:-5] for f in os.listdir(_minimax_h3_vhs_format_dir()) if f.endswith(".json"))
+        raise ValueError(
+            f"MiniMax H3 output format '{fmt}' is not available in VideoHelperSuite. "
+            f"Available formats: {', '.join('video/' + f for f in available)}."
+        )
+    pix_fmt = str(_first_payload_value(payload, "output_pix_fmt", default="") or "").strip()
+    prores_profile = str(_first_payload_value(payload, "output_prores_profile", default="") or "").strip()
+    if pix_fmt:
+        allowed = None
+        for widget in spec.get("main_pass", []):
+            if isinstance(widget, list) and len(widget) > 1 and widget[0] == "pix_fmt":
+                allowed = widget[1] if isinstance(widget[1], list) else [widget[1]]
+                break
+        if allowed is not None and pix_fmt not in allowed:
+            raise ValueError(
+                f"MiniMax H3 output pixel format '{pix_fmt}' is not supported by '{fmt}'. "
+                f"Allowed: {', '.join(map(str, allowed))}."
+            )
+    if prores_profile and prores_profile not in {"lt", "standard", "hq", "4444", "4444xq"}:
+        raise ValueError(
+            f"MiniMax H3 ProRes profile '{prores_profile}' is invalid. "
+            "Allowed: lt, standard, hq, 4444, 4444xq."
+        )
+    return fmt, pix_fmt, prores_profile
+
+
+def _vhs_format_declares_widget(spec, widget_name):
+    """True when the VHS format spec declares the named ffmpeg widget (crf, etc.)."""
+    if not spec:
+        return False
+    for widget in spec.get("main_pass", []):
+        if isinstance(widget, list) and len(widget) > 1 and widget[0] == widget_name:
+            return True
+    for widget in spec.get("extra_widgets", []):
+        if isinstance(widget, list) and len(widget) > 1 and widget[0] == widget_name:
+            return True
+    return False
+
+
+def _minimax_h3_default_pix_fmt(fmt_name):
+    """Sensible pixel format to apply when a lossless/master format is selected
+    but the user left the pixel-format choice blank. VHS's own built-in default
+    for FFV1 is 64-bit rgba64le (a ~4x file-size tax with no fidelity benefit for
+    an RGB VAE output), so we steer it to a real 10-bit master pixel format."""
+    return {
+        "ffv1-mkv": "yuv422p10le",
+        "h265-mp4": "yuv420p10le",
+    }.get(fmt_name, "")
+
+
 def _minimax_h3_2pass_api_template_path():
     return os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
@@ -3305,9 +3390,36 @@ def _build_minimax_h3_2pass_api_prompt(payload):
         _set_api_input(prompt, node_id, "model", list(pass2_model))
 
     _set_api_input(prompt, "183", "upscale_method", str(payload.get("final_resize_method") or "nvidia_rtx_vsr"))
-    _set_api_input(prompt, "142", "crf", _int_payload(payload, "output_crf", 19, 0, 100))
     output_folder, filename_prefix = _minimax_h3_output_location(project_folder, scene_number)
     _set_api_input(prompt, "142", "filename_prefix", f"{filename_prefix}_stage2")
+    # Global MiniMax H3 output-format settings (see _minimax_h3_output_format_inputs).
+    # The template already carries video/h264-mp4 + yuv420p + crf=19, so the default
+    # path leaves node 142 byte-for-byte as the workflow author intended. The format
+    # sub-widgets (pix_fmt / crf / ProRes profile) are not declared in the node's
+    # INPUT_TYPES but ComfyUI still forwards them into the node's **kwargs, and
+    # VHS_VideoCombine.apply_format_widgets reads them from there.
+    output_format, output_pix_fmt, output_prores_profile = _minimax_h3_output_format_inputs(payload)
+    if output_format != "video/h264-mp4":
+        _set_api_input(prompt, "142", "format", output_format)
+        if not output_pix_fmt:
+            output_pix_fmt = _minimax_h3_default_pix_fmt(output_format.split("/", 1)[1])
+    if output_pix_fmt:
+        _set_api_input(prompt, "142", "pix_fmt", output_pix_fmt)
+    if output_prores_profile:
+        _set_api_input(prompt, "142", "profile", output_prores_profile)
+    # Only emit crf when the chosen format actually declares the widget; FFV1 /
+    # ProRes ignore it, and h264-mp4 keeps the template's default of 19. The
+    # template carries crf/pix_fmt/profile by default, so strip any widget the
+    # chosen format does not declare to avoid stale values bleeding into the prompt.
+    format_spec = _load_vhs_format_spec(output_format.split("/", 1)[1])
+    if _vhs_format_declares_widget(format_spec, "crf"):
+        _set_api_input(prompt, "142", "crf", _int_payload(payload, "output_crf", 19, 0, 100))
+    else:
+        prompt["142"]["inputs"].pop("crf", None)
+    if not _vhs_format_declares_widget(format_spec, "profile"):
+        prompt["142"]["inputs"].pop("profile", None)
+    if not _vhs_format_declares_widget(format_spec, "pix_fmt"):
+        prompt["142"]["inputs"].pop("pix_fmt", None)
     return {
         "workflow_path": workflow_path,
         "output_folder": output_folder,
@@ -4582,10 +4694,13 @@ def _collect_minimax_h3_stage_backup(payload):
     os.makedirs(backup_dir, exist_ok=True)
     _wait_for_stable_readable_file(source_path)
     stamp = time.strftime("%Y%m%d_%H%M%S")
-    target_path = os.path.join(backup_dir, f"video_{scene_number:04d}-{stage}_{stamp}.mp4")
+    # Keep the source container's extension so lossless masters (ffv1-mkv -> .mkv,
+    # ProRes -> .mov) are not mislabeled as .mp4 in the backup folder.
+    source_ext = os.path.splitext(source_path)[1].lower() or ".mp4"
+    target_path = os.path.join(backup_dir, f"video_{scene_number:04d}-{stage}_{stamp}{source_ext}")
     index = 2
     while os.path.exists(target_path):
-        target_path = os.path.join(backup_dir, f"video_{scene_number:04d}-{stage}_{stamp}_{index:02d}.mp4")
+        target_path = os.path.join(backup_dir, f"video_{scene_number:04d}-{stage}_{stamp}_{index:02d}{source_ext}")
         index += 1
     _retry_file_op(lambda: shutil.copy2(source_path, target_path), f"Copying MiniMax H3 {stage} backup")
     thumbnail_path = _create_scene_video_thumbnail(target_path)

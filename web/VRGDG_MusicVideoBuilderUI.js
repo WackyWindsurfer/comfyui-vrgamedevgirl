@@ -271,6 +271,9 @@ const DEFAULT_MINIMAX_H3_SETTINGS = {
   two_pass_te_speed_device: "auto",
   two_pass_final_resize_method: "nvidia_rtx_vsr",
   two_pass_output_crf: 19,
+  two_pass_output_format: "video/h264-mp4",
+  two_pass_output_pix_fmt: "",
+  two_pass_output_prores_profile: "",
   three_pass_lightx_lora_name: "minimax_h3_fl2v_lightx2v_turbo_4step_v0.1_comfy_resized_avg_rank_21_bf16.safetensors",
   three_pass_lightx_lora_strength: 0.5,
   two_pass_pass1_megapixels: 0.5,
@@ -336,6 +339,77 @@ const MINIMAX_H3_SAGE_ATTENTION_OPTIONS = [
   { value: "sageattn3", label: "SageAttention 3" },
   { value: "sageattn3_per_block_mean", label: "SageAttention 3 — Per-block mean" },
 ];
+
+// Global MiniMax H3 output-format choices. The first entry is the default and
+// preserves the previous h264 behavior; the master/archive formats produce
+// lossless or near-lossless scene masters for finishing in an NLE (e.g.
+// DaVinci Resolve). Pixel-format options mirror the VHS format definitions.
+const MINIMAX_H3_OUTPUT_FORMAT_OPTIONS = [
+  { value: "video/h264-mp4", label: "H.264 MP4 (default — small, fast)" },
+  { value: "video/ffv1-mkv", label: "FFV1 MKV (lossless master)" },
+  { value: "video/ProRes", label: "ProRes MOV (Resolve-friendly master)" },
+  { value: "video/h265-mp4", label: "H.265/HEVC MP4" },
+  { value: "video/webm", label: "WebM VP9" },
+  { value: "video/av1-webm", label: "AV1 WebM" },
+];
+const MINIMAX_H3_PRORES_PROFILE_OPTIONS = [
+  { value: "4444", label: "4444 (10-bit 4:4:4 — best quality)" },
+  { value: "hq", label: "HQ (10-bit 4:2:2)" },
+  { value: "standard", label: "Standard (8-bit 4:2:2)" },
+  { value: "lt", label: "Light (8-bit 4:2:2)" },
+];
+const MINIMAX_H3_OUTPUT_PIX_FMT_OPTIONS = {
+  "video/h264-mp4": [
+    { value: "", label: "Auto (8-bit yuv420p — default)" },
+    { value: "yuv420p", label: "yuv420p (8-bit)" },
+    { value: "yuv420p10le", label: "yuv420p10le (10-bit)" },
+  ],
+  "video/ffv1-mkv": [
+    { value: "", label: "Auto (10-bit yuv422p10le — recommended)" },
+    { value: "yuv420p", label: "yuv420p (8-bit 4:2:0)" },
+    { value: "yuv422p", label: "yuv422p (8-bit 4:2:2)" },
+    { value: "yuv444p", label: "yuv444p (8-bit 4:4:4)" },
+    { value: "yuv420p10le", label: "yuv420p10le (10-bit 4:2:0)" },
+    { value: "yuv422p10le", label: "yuv422p10le (10-bit 4:2:2)" },
+    { value: "yuv444p10le", label: "yuv444p10le (10-bit 4:4:4)" },
+    { value: "yuv420p16le", label: "yuv420p16le (16-bit 4:2:0)" },
+    { value: "yuv422p16le", label: "yuv422p16le (16-bit 4:2:2)" },
+    { value: "yuv444p16le", label: "yuv444p16le (16-bit 4:4:4)" },
+  ],
+  "video/h265-mp4": [
+    { value: "", label: "Auto (8-bit yuv420p — default)" },
+    { value: "yuv420p", label: "yuv420p (8-bit)" },
+    { value: "yuv420p10le", label: "yuv420p10le (10-bit)" },
+  ],
+  "video/ProRes": [
+    { value: "", label: "Auto (profile decides 10-bit)" },
+  ],
+  "video/webm": [
+    { value: "", label: "Auto (default)" },
+  ],
+  "video/av1-webm": [
+    { value: "", label: "Auto (default)" },
+  ],
+};
+
+function minMaxH3OutputFormatValue(value) {
+  const clean = String(value || "").trim();
+  return MINIMAX_H3_OUTPUT_FORMAT_OPTIONS.some((item) => item.value === clean) ? clean : "video/h264-mp4";
+}
+
+function minMaxH3OutputPixFmtOptions(formatValue) {
+  return MINIMAX_H3_OUTPUT_PIX_FMT_OPTIONS[minMaxH3OutputFormatValue(formatValue)]
+    || MINIMAX_H3_OUTPUT_PIX_FMT_OPTIONS["video/h264-mp4"];
+}
+
+function minMaxH3OutputProresProfileOptions() {
+  return MINIMAX_H3_PRORES_PROFILE_OPTIONS;
+}
+
+function minMaxH3ProresProfileValue(value) {
+  const clean = String(value || "").trim();
+  return MINIMAX_H3_PRORES_PROFILE_OPTIONS.some((item) => item.value === clean) ? clean : "";
+}
 
 function normalizeMiniMaxH3Mode(value) {
   const clean = String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
@@ -508,6 +582,9 @@ function cloneMiniMaxH3Settings(value = {}) {
     two_pass_te_speed_device: String(source.two_pass_te_speed_device || DEFAULT_MINIMAX_H3_SETTINGS.two_pass_te_speed_device),
     two_pass_final_resize_method: String(source.two_pass_final_resize_method || DEFAULT_MINIMAX_H3_SETTINGS.two_pass_final_resize_method),
     two_pass_output_crf: Math.max(0, Math.min(100, Math.trunc(Number(source.two_pass_output_crf ?? DEFAULT_MINIMAX_H3_SETTINGS.two_pass_output_crf)))),
+    two_pass_output_format: String(source.two_pass_output_format || DEFAULT_MINIMAX_H3_SETTINGS.two_pass_output_format),
+    two_pass_output_pix_fmt: String(source.two_pass_output_pix_fmt || DEFAULT_MINIMAX_H3_SETTINGS.two_pass_output_pix_fmt),
+    two_pass_output_prores_profile: String(source.two_pass_output_prores_profile || DEFAULT_MINIMAX_H3_SETTINGS.two_pass_output_prores_profile),
     ...Object.fromEntries([1, 2].flatMap((pass) => {
       const prefix = `two_pass_pass${pass}_`;
       const defaults = DEFAULT_MINIMAX_H3_SETTINGS;
@@ -6050,6 +6127,31 @@ function openBuilder(node) {
   const miniMaxTwoPassResizeMethod = makeSelect(["nvidia_rtx_vsr", "lanczos", "bicubic", "bilinear", "nearest-exact"], DEFAULT_MINIMAX_H3_SETTINGS.two_pass_final_resize_method);
   const miniMaxTwoPassOutputCrf = makeInput(String(DEFAULT_MINIMAX_H3_SETTINGS.two_pass_output_crf), "number");
   miniMaxTwoPassOutputCrf.min = "0"; miniMaxTwoPassOutputCrf.max = "100"; miniMaxTwoPassOutputCrf.step = "1";
+  const miniMaxTwoPassOutputFormat = makeSelect(MINIMAX_H3_OUTPUT_FORMAT_OPTIONS, DEFAULT_MINIMAX_H3_SETTINGS.two_pass_output_format);
+  const miniMaxTwoPassOutputPixFmt = makeSelect(minMaxH3OutputPixFmtOptions(DEFAULT_MINIMAX_H3_SETTINGS.two_pass_output_format), DEFAULT_MINIMAX_H3_SETTINGS.two_pass_output_pix_fmt);
+  const miniMaxTwoPassOutputProresProfile = makeSelect(minMaxH3OutputProresProfileOptions(), DEFAULT_MINIMAX_H3_SETTINGS.two_pass_output_prores_profile);
+  const miniMaxTwoPassOutputFormatNote = document.createElement("div");
+  miniMaxTwoPassOutputFormatNote.textContent = "Output format for the final pass-2 scene render. H.264 MP4 is the fast default; FFV1 MKV and ProRes MOV are large lossless / near-lossless masters intended for finishing in an NLE. The exact-trimmed timeline clip and the auto-stitched full song always stay H.264 MP4, so the master format only changes the rendered scene file and its backup copy.";
+  miniMaxTwoPassOutputFormatNote.style.cssText = "font-size:11px;color:#a1a1aa;line-height:1.45;";
+  const rebuildMiniMaxTwoPassOutputPixFmtOptions = () => {
+    const current = miniMaxTwoPassOutputPixFmt.value;
+    const options = minMaxH3OutputPixFmtOptions(miniMaxTwoPassOutputFormat.value);
+    miniMaxTwoPassOutputPixFmt.replaceChildren();
+    for (const option of options) {
+      const el = document.createElement("option");
+      el.value = option.value;
+      el.textContent = option.label;
+      miniMaxTwoPassOutputPixFmt.append(el);
+    }
+    miniMaxTwoPassOutputPixFmt.value = options.some((item) => item.value === current) ? current : "";
+  };
+  miniMaxTwoPassOutputFormat.addEventListener("change", () => {
+    rebuildMiniMaxTwoPassOutputPixFmtOptions();
+    miniMaxTwoPassOutputProresProfile.disabled = miniMaxTwoPassOutputFormat.value !== "video/ProRes";
+    miniMaxTwoPassOutputProresProfile.style.opacity = miniMaxTwoPassOutputProresProfile.disabled ? "0.45" : "1";
+  });
+  miniMaxTwoPassOutputProresProfile.disabled = miniMaxTwoPassOutputFormat.value !== "video/ProRes";
+  miniMaxTwoPassOutputProresProfile.style.opacity = miniMaxTwoPassOutputProresProfile.disabled ? "0.45" : "1";
   const miniMaxTwoPassSpeedNote = document.createElement("div");
   miniMaxTwoPassSpeedNote.textContent = "The selected Turbo LoRA is applied ONLY to pass 2 and makes the refinement pass MUCH faster. TE-Speed is separate optional acceleration for the model path; uncheck it to bypass the OSS speed node completely.";
   miniMaxTwoPassSpeedNote.style.cssText = "font-size:11px;color:#facc15;line-height:1.45;";
@@ -6079,6 +6181,10 @@ function openBuilder(node) {
     makeSettingsSection("Output Advanced", [
       makeField("Final resize method", miniMaxTwoPassResizeMethod),
       makeField("Output CRF", miniMaxTwoPassOutputCrf),
+      miniMaxTwoPassOutputFormatNote,
+      makeField("Output format (master)", miniMaxTwoPassOutputFormat),
+      makeField("Output pixel format", miniMaxTwoPassOutputPixFmt),
+      makeField("ProRes profile", miniMaxTwoPassOutputProresProfile),
     ], false),
   ], false);
   miniMaxTwoPassSettings.style.display = "none";
@@ -7408,6 +7514,9 @@ function openBuilder(node) {
       two_pass_te_speed_device: miniMaxTwoPassTeDevice.value,
       two_pass_final_resize_method: miniMaxTwoPassResizeMethod.value,
       two_pass_output_crf: miniMaxTwoPassOutputCrf.value,
+      two_pass_output_format: miniMaxTwoPassOutputFormat.value,
+      two_pass_output_pix_fmt: miniMaxTwoPassOutputPixFmt.value,
+      two_pass_output_prores_profile: miniMaxTwoPassOutputFormat.value === "video/ProRes" ? miniMaxTwoPassOutputProresProfile.value : "",
       three_pass_lightx_lora_name: miniMaxThreePassLoraPicker.input.value,
       three_pass_lightx_lora_strength: miniMaxThreePassLoraStrength.value,
       ...Object.fromEntries(twoPassControls.flatMap((control) => [
@@ -8103,6 +8212,12 @@ function openBuilder(node) {
     miniMaxTwoPassTeDevice.value = settings.two_pass_te_speed_device;
     miniMaxTwoPassResizeMethod.value = settings.two_pass_final_resize_method;
     miniMaxTwoPassOutputCrf.value = String(settings.two_pass_output_crf);
+    miniMaxTwoPassOutputFormat.value = minMaxH3OutputFormatValue(settings.two_pass_output_format);
+    rebuildMiniMaxTwoPassOutputPixFmtOptions();
+    miniMaxTwoPassOutputPixFmt.value = String(settings.two_pass_output_pix_fmt || "");
+    miniMaxTwoPassOutputProresProfile.value = minMaxH3ProresProfileValue(settings.two_pass_output_prores_profile);
+    miniMaxTwoPassOutputProresProfile.disabled = miniMaxTwoPassOutputFormat.value !== "video/ProRes";
+    miniMaxTwoPassOutputProresProfile.style.opacity = miniMaxTwoPassOutputProresProfile.disabled ? "0.45" : "1";
     miniMaxThreePassLoraPicker.input.value = settings.three_pass_lightx_lora_name;
     miniMaxThreePassLoraStrength.value = String(settings.three_pass_lightx_lora_strength);
     twoPassControls.forEach((control) => {
@@ -45483,6 +45598,9 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         te_speed_device: twoPass ? miniMaxSettings.two_pass_te_speed_device : undefined,
         final_resize_method: twoPass ? miniMaxSettings.two_pass_final_resize_method : undefined,
         output_crf: twoPass ? miniMaxSettings.two_pass_output_crf : undefined,
+        output_format: twoPass ? miniMaxSettings.two_pass_output_format : undefined,
+        output_pix_fmt: twoPass ? miniMaxSettings.two_pass_output_pix_fmt : undefined,
+        output_prores_profile: twoPass ? miniMaxSettings.two_pass_output_prores_profile : undefined,
         three_pass_lightx_lora_name: miniMaxSettings.three_pass_lightx_lora_name,
         three_pass_lightx_lora_strength: miniMaxSettings.three_pass_lightx_lora_strength,
         pass1_steps: twoPass ? (requestedTwoPassSteps?.pass1 ?? miniMaxSettings.two_pass_pass1_steps) : miniMaxSettings.steps,
