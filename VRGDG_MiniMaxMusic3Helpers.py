@@ -47,6 +47,15 @@ _TUNING_PRESETS = {
     "Fast Draft": (1.5, 50, 1.5, 20, 0.95),
     "High-Energy / Dense": (1.6, 65, 1.95, 42, 1.15),
     "Soft / Restrained": (1.7, 35, 1.45, 36, 0.95),
+    "Reference Lock (Cover/Remix)": (2.2, 18, 2.0, 36, 1.15),
+    "Lo-fi / Imperfect": (1.3, 85, 1.45, 24, 0.90),
+    "Ambient / Textural": (1.15, 60, 1.35, 44, 0.85),
+    "Club / Punch": (1.75, 50, 1.95, 32, 1.10),
+    "Deterministic Baseline (A/B)": (1.5, 15, 1.7, 36, 1.0),
+    "Max Render": (1.7, 45, 2.0, 56, 1.15),
+    "Experimental / Weird": (0.95, 140, 1.25, 24, 0.75),
+    "Vocal-First": (1.8, 40, 1.5, 34, 0.90),
+    "Hybrid / Fusion": (1.35, 75, 1.55, 36, 1.0),
 }
 
 _VOCAL_PROFILES = (

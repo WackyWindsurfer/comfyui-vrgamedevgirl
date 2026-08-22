@@ -18,5 +18,14 @@
   "Long-Song Stability": "Tighter planning, stronger text guidance and more rendering steps. Intended to help longer songs remain coherent across sections; may repeat ideas or feel less spontaneous.",
   "Fast Draft": "Uses only 20 rendering steps with otherwise moderate controls. Useful for quickly testing lyrics, captions and seeds; expect less refinement than a final render.",
   "High-Energy / Dense": "Strong diffusion, more steps, elevated diversity and plan emphasis. Tends toward louder-feeling, layered and high-impact arrangements; increased congestion or artifact risk.",
-  "Soft / Restrained": "Focused AR planning with gentle diffusion and slightly reduced plan strength. Tends toward calmer dynamics, lighter density and less aggressive rendering."
+  "Soft / Restrained": "Focused AR planning with gentle diffusion and slightly reduced plan strength. Tends toward calmer dynamics, lighter density and less aggressive rendering.",
+  "Reference Lock (Cover/Remix)": "Pushes text adherence and token constraint past Strict Lyrics with strong plan emphasis. Aims to lock onto an existing arrangement or reference closely; expect little improvisation.",
+  "Lo-fi / Imperfect": "Relaxed guidance, elevated diversity and fewer rendering steps at reduced plan strength. Tends toward looser, less polished texture with more wobble and grain; avoid for final renders.",
+  "Ambient / Textural": "Light guidance, long smooth denoising and a weak acoustic plan. Tends toward slow-evolving, textural and atmospheric results; slow transitions and low urgency by design.",
+  "Club / Punch": "Strong caption guidance with tight token selection and hard diffusion at modest steps. Tends toward dry, in-the-box groove and punch; denser than High-Energy / Dense with less arrangement freedom.",
+  "Deterministic Baseline (A/B)": "Near-baseline values with minimal token diversity so re-runs on the same seed stay closely comparable. A control preset for judging other presets; not a quality target.",
+  "Max Render": "Raises diffusion steps and guidance to the top of the scale with strong plan emphasis. For final, one-pass master renders; significantly slower with no guarantee of better composition.",
+  "Experimental / Weird": "Deliberately below the normal range of every control. Invites unusual, unstable or broken-but-interesting results; results are unvalidated territory, expect anything.",
+  "Vocal-First": "Strong caption guidance for the vocal with a deliberately weak instrumental plan. Tends to keep arrangements behind the lead vocal instead of competing with it.",
+  "Hybrid / Fusion": "Moderate guidance with elevated diversity and balanced plan strength. Aims to blend multiple influences evenly for mixed-genre briefs without the full drift of Creative Variations."
 }
