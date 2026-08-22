@@ -370,5 +370,29 @@
     "tempo": "steady 115-125 BPM four-on-the-floor disco pulse",
     "arc": "synth intro, pulsing verse, gated-reverb chorus, instrumental synth break, dramatic final chorus",
     "avoid": "acoustic folk sound, live rock drums, modern trap production, raw garage distortion"
+  },
+  "French House / Disco-Funk": {
+    "singer": "processed French house vocalist or sampled vocal hook",
+    "style": "retro-futuristic French house and disco-funk style",
+    "genre": "French house, disco-funk and electronic pop with vintage sampling",
+    "mood": "euphoric, celebratory, futuristic and coolly robotic",
+    "instruments": "four-on-the-floor drum machines, punchy funk bass lines, vintage analog synth stabs, brass-like synth chords, disco-funk guitar and piano chops, turntable scratch accents",
+    "vocal": "sampled or processed lead, chopped and looped hooks, light robotic effects, call-and-response chants",
+    "production": "heavy sampling with tape warmth, wide stereo disco-funk, crisp gated drums, clean retro-futuristic polish",
+    "tempo": "118-126 BPM four-on-the-floor house pulse",
+    "arc": "sampled intro, building groove, euphoric chant chorus, instrumental breakdown, final stacked-hook drop",
+    "avoid": "live rock distortion, trap hi-hat rolls, muddy low end, acoustic folk instrumentation"
+  },
+  "Jazzmatazz": {
+    "singer": "smooth jazz-hop lead vocalist",
+    "style": "jazz hip-hop fusion style in the jazzmatazz tradition",
+    "genre": "jazz hip-hop fusing live jazz instrumentation with boom-bap production",
+    "mood": "sophisticated, smooth, funky and late-night",
+    "instruments": "upright walking bass, brushed drums, Rhodes or upright piano, muted trumpet and saxophone, layered boom-bap drums over live jazz, vinyl sample texture",
+    "vocal": "cool relaxed lead behind the beat, light melodic or rapped hook, subtle ad-libs and horn responses",
+    "production": "warm analog saturation, dusty boom-bap drums, intimate jazz room, wide dynamics, sample-forward center image",
+    "tempo": "85-95 BPM boom-bap groove with swing feel",
+    "arc": "jazz sample intro, relaxed verse, melodic hook, live improvisation break, final hook with horns",
+    "avoid": "EDM drops, hard live rock drums, heavy autotune, dense pop vocal stacks"
   }
 }
