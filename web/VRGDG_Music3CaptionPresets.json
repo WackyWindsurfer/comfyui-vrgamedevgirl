@@ -310,5 +310,65 @@
     "tempo": "steady mid-tempo electronic pulse",
     "arc": "atmospheric intro, pulsing verse, broad neon chorus, instrumental synth break, cinematic ending",
     "avoid": "acoustic folk sound, raw garage drums, trap hi-hats, dense guitar distortion"
+  },
+  "Reggaeton": {
+    "singer": "confident reggaeton lead vocalist",
+    "style": "modern urban reggaeton style",
+    "genre": "reggaeton and Latin urban pop",
+    "mood": "sensual, swaggering, nocturnal and confident",
+    "instruments": "dembow kick-snare pattern, deep sub bass, punchy 808-style bass, crisp claps, sparse synth stabs, occasional percussion accents",
+    "vocal": "dry rhythmic lead with melodic hook, ad-libs and call-and-response moments, Spanish or English phrasing",
+    "production": "hard centered drums, tight sub bass, bright dry vocal, dark spacious bed, crisp transients",
+    "tempo": "92-102 BPM dembow pulse with heavy half-time feel",
+    "arc": "minimal intro, hook-first chorus, compact verse, drop or bridge break, final hook with ad-libs",
+    "avoid": "live rock drums, acoustic folk instrumentation, trap hi-hat rolls, EDM drops"
+  },
+  "EDM / Future Bass": {
+    "singer": "emotive dance-music lead vocalist",
+    "style": "modern EDM future bass style",
+    "genre": "future bass and melodic dance with vocal-led hooks",
+    "mood": "euphoric, kinetic, anthemic and emotionally charged",
+    "instruments": "supersaw synth pads, sidechained plucks, deep sub bass, punchy EDM kick and snare, melodic lead synth, riser and impact elements",
+    "vocal": "clear emotional lead, chopped and pitched vocal chops, short phrases that feed the drop, stacked chorus harmonies",
+    "production": "heavy sidechain pumping, wide stereo synths, hard transients, bright airy highs, large sub bass",
+    "tempo": "150-175 BPM with strong drop-driven dynamics",
+    "arc": "filtered intro, building verse, pre-drop tension, euphoric drop chorus, second verse, final drop with stacked vocals",
+    "avoid": "loose live-band timing, raw room acoustics, dry unprocessed vocal, slow ballad pacing"
+  },
+  "Lo-fi Beats / Chillhop": {
+    "singer": "mellow lo-fi beat vocalist",
+    "style": "chill lo-fi beats style",
+    "genre": "lo-fi hip-hop, chillhop and mellow instrumental beats",
+    "mood": "laid-back, nostalgic, sleepy and contemplative",
+    "instruments": "dusty Rhodes or piano loop, muffled drum machine beat, warm round bass, vinyl crackle and tape hiss, soft guitar or muted keys",
+    "vocal": "optional soft half-sung or whispered hook, close dry delivery, sparse phrasing, minimal effect",
+    "production": "warm saturated center image, low-pass coloring, dusty drums, limited stereo width, audible tape texture",
+    "tempo": "70-90 BPM relaxed swing, loop-friendly structure",
+    "arc": "loop intro, short verse or hook, mellow middle variation, stripped break, final looped refrain",
+    "avoid": "hard live drums, bright polished pop sheen, aggressive bass, dense arrangement, EDM drops"
+  },
+  "Jazz Vocal / Swing": {
+    "singer": "smooth jazz-club lead vocalist",
+    "style": "classic jazz club vocal style",
+    "genre": "vocal jazz, swing and big-band influenced standards",
+    "mood": "sophisticated, relaxed, smoky and confident",
+    "instruments": "brushed drums, upright walking bass, piano and Rhodes, muted trumpet or saxophone, light horn section",
+    "vocal": "smooth close lead with tasteful improvisation, behind-the-beat swing, warm vibrato, scats or light ad-libs",
+    "production": "dry small-club ambience, natural instrument bleed, warm tube character, wide dynamics, minimal modern processing",
+    "tempo": "medium swing tempo with flexible rubato passages",
+    "arc": "instrumental intro, verse with light comping, swinging chorus, improvised solo break, final tag on the hook",
+    "avoid": "synthetic drums, trap percussion, heavy autotune, dense pop vocal stacks, electronic synths"
+  },
+  "Italo Disco": {
+    "singer": "dramatic 1980s disco-pop lead vocalist",
+    "style": "classic 80s Italo disco style",
+    "genre": "1980s Italo disco and Euro disco",
+    "mood": "theatrical, neon, melancholic and danceable",
+    "instruments": "drum machine four-on-the-floor beat, pulsing synth bass, bright synth stabs, gated reverb synth lead, wide pads, occasional string or arpeggio layers",
+    "vocal": "dramatic belted lead with reverb, long melodic phrases, moody bridge and anthemic chorus hooks",
+    "production": "gated snare, wide stereo synths, polished retro low end, bright transients, lush but controlled ambience",
+    "tempo": "steady 115-125 BPM four-on-the-floor disco pulse",
+    "arc": "synth intro, pulsing verse, gated-reverb chorus, instrumental synth break, dramatic final chorus",
+    "avoid": "acoustic folk sound, live rock drums, modern trap production, raw garage distortion"
   }
 }
