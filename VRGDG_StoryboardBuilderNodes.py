@@ -985,6 +985,57 @@ def _storyboard_prompt_mentions_visible_face(prompt):
     ))
 
 
+def _storyboard_timed_lyric_contract(scene):
+    if not isinstance(scene, dict):
+        return ""
+    vocal_status = scene.get("vocal_status") if isinstance(scene.get("vocal_status"), dict) else {}
+    cues = scene.get("lyric_cue_map") or vocal_status.get("lyric_cue_map") or []
+    if not isinstance(cues, list) or not cues:
+        return _clean_scene_text(
+            scene.get("timed_lyric_cue_contract") or vocal_status.get("timed_lyric_cue_contract") or "",
+            12000,
+        )
+    rows = []
+    starts = []
+    for index, cue in enumerate(cues, start=1):
+        if not isinstance(cue, dict):
+            continue
+        try:
+            start = float(cue.get("start"))
+            end = float(cue.get("end"))
+        except (TypeError, ValueError):
+            continue
+        if not math.isfinite(start) or not math.isfinite(end) or end <= start:
+            continue
+        cue_type = "instrumental" if str(cue.get("type") or "").strip().lower() == "instrumental" else "vocal"
+        starts.append(start)
+        if cue_type == "instrumental":
+            rows.append(
+                f"[Cue {index}] {start:.3f}s-{end:.3f}s: INSTRUMENTAL. No visible singing or lip-sync; mouths remain closed or naturally relaxed."
+            )
+            continue
+        lyric = _clean_scene_text(cue.get("text") or "", 1200)
+        if not lyric:
+            continue
+        singer = _clean_scene_text(cue.get("singer_name") or "the assigned singer", 160)
+        rows.append(
+            f'[Cue {index}] {start:.3f}s-{end:.3f}s: {singer} sings only <d>[English] {lyric}</d>. Do not add words from any other cue.'
+        )
+    if not rows:
+        return ""
+    cut_times = ", ".join(f"{value:.3f}s" for value in starts[1:])
+    cut_rule = (
+        f"Create exactly {len(rows)} chronological shot intervals with cuts at {cut_times}."
+        if cut_times else
+        "Create one continuous shot interval for this cue."
+    )
+    return "\n".join([
+        "AUTHORITATIVE WHISPER-TIMED LYRIC CUE CONTRACT — this overrides the general cut-frequency plan and full scene lyric:",
+        cut_rule,
+        *rows,
+        "Never repeat the complete scene lyric in every shot. Each shot may contain only the lyric assigned to its own timed cue; instrumental cues contain no visible singing.",
+    ])
+
 def _storyboard_scene_is_visible_singing(scene):
     if not isinstance(scene, dict) or not _storyboard_scene_has_visible_character(scene):
         return False
@@ -1415,6 +1466,7 @@ def _build_storyboard_video_prompt(payload):
             or payload.get("video_type")
             or payload.get("videoType")
         )
+        timed_lyric_contract = _storyboard_timed_lyric_contract(selected_scene)
         pronouns = _single_subject_pronouns(selected_scene)
         if pronouns:
             pronoun_contract = (
@@ -1423,7 +1475,13 @@ def _build_storyboard_video_prompt(payload):
             )
         else:
             pronoun_contract = "Use pronouns and singular/plural agreement that exactly match the mapped subject count."
-        if _storyboard_scene_is_visible_singing(selected_scene):
+        if timed_lyric_contract:
+            vocal_contract = (
+                "This scene uses an authoritative Whisper-timed lyric cue map. Visible singing occurs only inside vocal cue intervals, "
+                "using only the words assigned to that interval. Instrumental intervals have no visible singing or lip-sync. "
+                "Never repeat or restart the complete scene lyric in each shot."
+            )
+        elif _storyboard_scene_is_visible_singing(selected_scene):
             vocal_contract = (
                 "This is a visible singing/lip-sync scene. The performer must visibly vocalize the supplied lyric in sync with the audio, "
                 "using natural mouth, lip, cheek, and jaw movement. Never describe closed, still, sealed, relaxed-closed, or unmoving lips."
@@ -1469,10 +1527,11 @@ def _build_storyboard_video_prompt(payload):
         user_notes = "\n\n".join(
             part for part in [
                 ltx_one_pass_contract,
-                f"MANDATORY editing / cut plan:\n{_clean_scene_text((selected_scene.get('cut_plan') or {}).get('instruction') if isinstance(selected_scene.get('cut_plan'), dict) else '', 5000)}",
+                timed_lyric_contract,
+                f"MANDATORY editing / cut plan:\n{_clean_scene_text((selected_scene.get('cut_plan') or {}).get('instruction') if isinstance(selected_scene.get('cut_plan'), dict) else '', 5000)}" if not timed_lyric_contract else "",
                 f"Required starting shot:\n{json.dumps(selected_scene.get('starting_shot'), ensure_ascii=False)}" if _storyboard_starting_shot_value(selected_scene) else "",
                 f"Performance mode:\n{performance_mode}",
-                f"Scene lyrics:\n{_clean_scene_text(vocal_status.get('lyric_text') or '', 1000)}",
+                f"Scene lyrics:\n{_clean_scene_text(vocal_status.get('lyric_text') or '', 1000)}" if not timed_lyric_contract else "",
                 f"Lyric section:\n{_clean_scene_text(vocal_status.get('lyric_section') or story_layer.get('lyric_section') or '', 200)}",
                 f"Scene story beat:\n{_clean_scene_text(story_layer.get('scene_story_beat') or '', 1200)}",
                 f"Motion/video summary:\n{motion_summary}",
@@ -1498,6 +1557,9 @@ def _build_storyboard_video_prompt(payload):
             "image_reference_path": image_path,
             "image_reference_data": image_data,
             "user_notes": user_notes,
+            "lyric_text": "" if timed_lyric_contract else _clean_scene_text(vocal_status.get("lyric_text") or "", 1200),
+            "lyric_cue_map": selected_scene.get("lyric_cue_map") or vocal_status.get("lyric_cue_map") or [],
+            "timed_lyric_cue_contract": timed_lyric_contract,
             "performance_mode": performance_mode,
             "subject_context": subject_context,
             "location_context": location_context,
@@ -2333,6 +2395,56 @@ def _parse_flf_endpoint_json(text):
     return json.loads(candidate)
 
 
+_SCENE_BEAT_AUDIO_LANGUAGE = re.compile(
+    r"\b(?:lip[\s-]?sync(?:ing)?|sings?|singing|sang|lyrics?|lyric|"
+    r"vocals?|vocalizing|vocalizes?|rapping|raps?|music|instrumental|"
+    r"performing vocals?)\b",
+    flags=re.IGNORECASE,
+)
+
+
+def _scene_beat_has_audio_language(text):
+    """Return whether a narrative scene beat leaks performance/audio metadata."""
+    return bool(_SCENE_BEAT_AUDIO_LANGUAGE.search(str(text or "")))
+
+
+def _strip_scene_beat_audio_language(text):
+    """Remove common performance phrasing from a beat as a final safety net.
+
+    Scene beats are consumed as visual story guidance. Audio/performance metadata
+    belongs to the video-prompt stage and must never become part of this field.
+    """
+    cleaned = _clean_scene_text(text, 1800)
+    if not cleaned:
+        return ""
+    # Preserve the useful visual clause in constructions such as:
+    # "Singer visibly sings ... as her fingertips trace ...".
+    cleaned = re.sub(
+        r"\b(?:the\s+)?(?:singer|performer|vocalist)\s+(?:visibly\s+)?"
+        r"(?:sings?|sang|is\s+singing|performs?)\b"
+        r"(?:\s+(?:through|during|over)\s+[^,.;!?]+)?\s+as\s+",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(
+        r"\b(?:while|as)\s+(?:she|he|they|the\s+(?:singer|performer|vocalist))\s+"
+        r"(?:sings?|sang|is\s+singing|performs?)\b\s*[,]?\s*",
+        "while ",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    # Drop any residual sentence that is solely an audio/performance aside.
+    sentences = re.split(r"(?<=[.!?])\s+", cleaned)
+    sentences = [
+        sentence for sentence in sentences
+        if not _scene_beat_has_audio_language(sentence)
+    ]
+    cleaned = " ".join(sentences)
+    cleaned = re.sub(r"\s{2,}", " ", cleaned).strip(" \t\n,;:-")
+    return cleaned
+
+
 def _build_story_layer_scene_beat(payload):
     scene_bundle = payload.get("storyboard_payload") or payload.get("scene_bundle") or payload.get("gpt_payload")
     if not isinstance(scene_bundle, dict):
@@ -2437,8 +2549,8 @@ def _build_story_layer_scene_beat(payload):
         "Rules:\n"
         "- Use the Song Story Brief and User Story Arc as continuity anchors.\n"
         "- Use the selected scene lyrics, lyric section, subject details, location details, vocal status, and no-character flag.\n"
-        "- Vocal casting is absolute: follow the Performer assignment exactly. Only names in its singing list may sing. Every name in its silent list must remain visibly present but silent. Never write that both/all visible subjects sing unless both/all are explicitly in the singing list. If the singing list has one name, use singular wording: that performer sings; the other subject does not sing.\n"
-        "- This request creates a narrative Scene Story Beat, not the final still-image prompt. Ignore any Image Prep instruction saying that subjects must be silent or that singing must not be mentioned. For this beat, use the Performer assignment: if one performer is assigned, that performer visibly sings while every other visible subject remains silent.\n"
+        "- This request creates a visual narrative Scene Story Beat only. Do not mention singing, lyrics, vocals, rapping, lip-sync, music, instrumental sections, dialogue delivery, or any other audio/performance metadata. Do not describe whether a subject is silent or vocal. Show the story through visible action, posture, expression, blocking, props, environment, and emotional stakes.\n"
+        "- Performer and vocal assignments are downstream video-prompt metadata, not content for this beat; never copy those assignments into the story_beat.\n"
         "- The existing scene story beat, if present in the selected scene JSON, is stale draft text being replaced. Do not copy, preserve, or treat it as a fact; the Performer assignment and current scene data override it.\n"
         "- Scene defaults are authoritative when supplied: use the selected shot, camera motion/camera-flow direction, character motion, performance direction, and facial direction to shape the beat. Do not replace them with generic actions.\n"
         "- Treat the selected scene location_ref as the required physical setting for this scene.\n"
@@ -2465,18 +2577,13 @@ def _build_story_layer_scene_beat(payload):
         f"CURRENT scene lyric text (main authority):\n{current_lyrics or '[none]'}\n\n"
         f"Next scene lyric text:\n{next_lyrics or '[none]'}\n\n"
         f"Scene defaults and motion direction (authoritative when supplied):\n{json.dumps(scene_defaults, ensure_ascii=False, indent=2)}\n\n"
-        f"Assigned singing performers (the only subjects allowed to sing):\n{json.dumps(assigned_performers, ensure_ascii=False)}\n\n"
-        f"Performer assignment contract:\n{json.dumps({'singing': assigned_performers, 'silent': silent_performers}, ensure_ascii=False, indent=2)}\n\n"
+        "Performance assignment metadata (do not mention this in the story beat):\n"
+        f"{json.dumps({'singing': assigned_performers, 'silent': silent_performers}, ensure_ascii=False, indent=2)}\n\n"
         f"Mapped extras and exact scene roles:\n{json.dumps(extra_subjects, ensure_ascii=False, indent=2) if extra_subjects else '[none]'}\n\n"
         "Selected scene JSON:\n"
         + json.dumps(scene, ensure_ascii=False, indent=2)
         + "\n\nFINAL SCENE-BEAT OVERRIDE — FOLLOW THIS LAST:\n"
-        + f"This is a narrative scene beat, not an Image Prep still-image prompt. Assigned singing performers: {json.dumps(assigned_performers, ensure_ascii=False)}. Assigned silent visible subjects: {json.dumps(silent_performers, ensure_ascii=False)}. "
-        + (f"Only {assigned_performers[0]} visibly sings the current lyric; every other visible subject is silent. Do not write that both subjects sing."
-           if len(assigned_performers) == 1 else
-           "No mapped subject sings; keep all visible subjects silent."
-           if not assigned_performers else
-           f"Only these performers visibly sing: {', '.join(assigned_performers)}; every other visible subject is silent.")
+        + "Return only visual story information: setting, visible actions, blocking, props, facial emotion, atmosphere, symbolism, and continuity. Exclude all audio, lyric, vocal, singing, lip-sync, and performance-delivery language."
     )
     from .VRGDG_MusicVideoBuilderNodes import _run_builder_text_llm
 
@@ -2534,6 +2641,36 @@ def _build_story_layer_scene_beat(payload):
         text = re.sub(r"^\s*(scene\s+story\s+beat|story\s+beat|beat)\s*:\s*", "", _clean_scene_text(text, 1800), flags=re.I)
     if not text:
         raise ValueError("Gemma returned an empty scene story beat.")
+    if _scene_beat_has_audio_language(text):
+        repair_instruction = (
+            "Rewrite this scene story beat as visual narrative guidance only. Preserve its setting, visible actions, props, emotion, symbolism, and continuity. "
+            "Remove every reference to singing, lyrics, vocals, rapping, lip-sync, music, instrumental sections, dialogue delivery, or audio/performance metadata. "
+            "Do not replace those references with a statement that the subject is silent; simply describe the visible action. Output one concise paragraph only, with no label or bullets.\n\n"
+            f"Original scene beat:\n{text}"
+        )
+        repaired_text, repair_info = _run_builder_text_llm(
+            payload,
+            repair_instruction,
+            temperature=0.10,
+            top_p=0.80,
+            max_new_tokens=300,
+            label="Storyboard Scene Beat Audio Language Repair Gemma",
+            preserve_paragraphs=True,
+        )
+        repaired_text = re.sub(r"^\s*(scene\s+story\s+beat|story\s+beat|beat)\s*:\s*", "", _clean_scene_text(repaired_text, 1800), flags=re.I)
+        if repaired_text and not _scene_beat_has_audio_language(repaired_text):
+            text = repaired_text
+            run_info = {
+                **run_info,
+                "audio_language_repaired": True,
+                "audio_language_repair_runner": repair_info.get("runner", ""),
+                "audio_language_repair_model": repair_info.get("used_model", ""),
+            }
+        else:
+            text = _strip_scene_beat_audio_language(text)
+            run_info = {**run_info, "audio_language_repaired": True, "audio_language_repair_fallback": True}
+    else:
+        text = _strip_scene_beat_audio_language(text)
     location_context = _storyboard_scene_location_context(scene)
     drift_terms = _storyboard_location_drift_terms(text, location_context)
     if drift_terms:
@@ -2615,6 +2752,9 @@ def _build_story_layer_scene_beat(payload):
             "extra_mapping_repair_runner": repair_info.get("runner", ""),
             "extra_mapping_repair_model": repair_info.get("used_model", ""),
         }
+    text = _strip_scene_beat_audio_language(text)
+    if not text:
+        raise ValueError("Scene beat became empty after removing audio/performance language.")
     return {
         "story_beat": text,
         **flf_fields,

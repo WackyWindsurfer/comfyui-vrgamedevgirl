@@ -292,11 +292,11 @@ const DEFAULT_MINIMAX_H3_SETTINGS = {
   three_pass_pass1_scheduler: "beta",
   three_pass_pass1_seed: 69,
   three_pass_pass1_te_speed: true,
-  three_pass_pass2_megapixels: 1,
-  three_pass_pass2_steps: 5,
+  three_pass_pass2_megapixels: 2,
+  three_pass_pass2_steps: 1,
   three_pass_pass2_denoise: 0.2,
-  three_pass_pass2_sampler: "euler",
-  three_pass_pass2_scheduler: "beta",
+  three_pass_pass2_sampler: "sa_solver",
+  three_pass_pass2_scheduler: "simple",
   three_pass_pass2_seed: 69,
   three_pass_pass2_te_speed: false,
   three_pass_pass3_megapixels: 2,
@@ -306,6 +306,39 @@ const DEFAULT_MINIMAX_H3_SETTINGS = {
   three_pass_pass3_scheduler: "beta",
   three_pass_pass3_seed: 69,
   three_pass_pass3_te_speed: false,
+  advanced_two_pass_vram_preset: "12gb",
+  advanced_two_pass_defaults_version: 1,
+  advanced_two_pass_tile_size_mode: "specific_size",
+  advanced_two_pass_tile_width: 448,
+  advanced_two_pass_tile_height: 448,
+  advanced_two_pass_grid_rows: 3,
+  advanced_two_pass_grid_cols: 5,
+  advanced_two_pass_chunk_length: 68,
+  advanced_two_pass_temporal_overlap: 17,
+  advanced_two_pass_anchor_strength: 0.999,
+  advanced_two_pass_spatial_w_overlap: 128,
+  advanced_two_pass_spatial_h_overlap: 128,
+  advanced_two_pass_fade_width: 32,
+  advanced_two_pass_fade_height: 32,
+  advanced_two_pass_min_tile_size: 256,
+  advanced_two_pass_overlap_mode: "earlier",
+  advanced_two_pass_overlap_blend: "linear",
+  advanced_two_pass_upscaler_device: "cuda",
+  advanced_two_pass_upscaler_precision: "bf16",
+  advanced_two_pass_pass1_megapixels: 0.4,
+  advanced_two_pass_pass1_resolution_preset: "custom",
+  advanced_two_pass_pass1_steps: 20,
+  advanced_two_pass_pass1_denoise: 1,
+  advanced_two_pass_pass1_sampler: "euler",
+  advanced_two_pass_pass1_scheduler: "beta",
+  advanced_two_pass_pass1_seed: 69,
+  advanced_two_pass_pass2_megapixels: 2,
+  advanced_two_pass_pass2_resolution_preset: "custom",
+  advanced_two_pass_pass2_steps: 1,
+  advanced_two_pass_pass2_denoise: 0.2,
+  advanced_two_pass_pass2_sampler: "sa_solver",
+  advanced_two_pass_pass2_scheduler: "simple",
+  advanced_two_pass_pass2_seed: 69,
 };
 
 const MINIMAX_H3_CONTINUITY_OPTIONS = [
@@ -427,6 +460,7 @@ function normalizeMiniMaxH3VideoPurpose(value) {
 function cloneMiniMaxH3Settings(value = {}) {
   const source = value && typeof value === "object" ? value : {};
   const hasCurrentTwoPassDefaults = Number(source.two_pass_defaults_version || 0) >= 1;
+  const hasCurrentAdvancedTwoPassDefaults = Number(source.advanced_two_pass_defaults_version || 0) >= 1;
   const sourceLoras = Array.isArray(source.loras)
     ? source.loras
     : Array.from({ length: 4 }, (_, index) => ({
@@ -508,6 +542,55 @@ function cloneMiniMaxH3Settings(value = {}) {
     two_pass_te_speed_device: String(source.two_pass_te_speed_device || DEFAULT_MINIMAX_H3_SETTINGS.two_pass_te_speed_device),
     two_pass_final_resize_method: String(source.two_pass_final_resize_method || DEFAULT_MINIMAX_H3_SETTINGS.two_pass_final_resize_method),
     two_pass_output_crf: Math.max(0, Math.min(100, Math.trunc(Number(source.two_pass_output_crf ?? DEFAULT_MINIMAX_H3_SETTINGS.two_pass_output_crf)))),
+    advanced_two_pass_vram_preset: ["8gb", "12gb", "16gb", "24gb", "custom"].includes(String(source.advanced_two_pass_vram_preset || "").toLowerCase())
+      ? String(source.advanced_two_pass_vram_preset).toLowerCase()
+      : DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_vram_preset,
+    advanced_two_pass_tile_size_mode: ["specific_size", "rows_cols"].includes(String(source.advanced_two_pass_tile_size_mode || "").toLowerCase())
+      ? String(source.advanced_two_pass_tile_size_mode).toLowerCase()
+      : DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_tile_size_mode,
+    advanced_two_pass_tile_width: Math.max(32, Math.min(16384, Math.trunc(Number(source.advanced_two_pass_tile_width ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_tile_width)))),
+    advanced_two_pass_tile_height: Math.max(32, Math.min(16384, Math.trunc(Number(source.advanced_two_pass_tile_height ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_tile_height)))),
+    advanced_two_pass_grid_rows: Math.max(1, Math.min(9, Math.trunc(Number(source.advanced_two_pass_grid_rows ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_grid_rows)))),
+    advanced_two_pass_grid_cols: Math.max(1, Math.min(9, Math.trunc(Number(source.advanced_two_pass_grid_cols ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_grid_cols)))),
+    advanced_two_pass_chunk_length: Math.max(17, Math.min(100000, Math.trunc(Number(source.advanced_two_pass_chunk_length ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_chunk_length)))),
+    advanced_two_pass_temporal_overlap: Math.max(0, Math.min(100000, Math.trunc(Number(source.advanced_two_pass_temporal_overlap ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_temporal_overlap)))),
+    advanced_two_pass_anchor_strength: Math.max(0, Math.min(1, Number(source.advanced_two_pass_anchor_strength ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_anchor_strength))),
+    advanced_two_pass_spatial_w_overlap: Math.max(0, Math.min(16384, Math.trunc(Number(source.advanced_two_pass_spatial_w_overlap ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_spatial_w_overlap)))),
+    advanced_two_pass_spatial_h_overlap: Math.max(0, Math.min(16384, Math.trunc(Number(source.advanced_two_pass_spatial_h_overlap ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_spatial_h_overlap)))),
+    advanced_two_pass_fade_width: Math.max(0, Math.min(16384, Math.trunc(Number(source.advanced_two_pass_fade_width ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_fade_width)))),
+    advanced_two_pass_fade_height: Math.max(0, Math.min(16384, Math.trunc(Number(source.advanced_two_pass_fade_height ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_fade_height)))),
+    advanced_two_pass_min_tile_size: Math.max(0, Math.min(16384, Math.trunc(Number(source.advanced_two_pass_min_tile_size ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_min_tile_size)))),
+    advanced_two_pass_overlap_mode: ["earlier", "later"].includes(String(source.advanced_two_pass_overlap_mode || "").toLowerCase())
+      ? String(source.advanced_two_pass_overlap_mode).toLowerCase()
+      : DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_overlap_mode,
+    advanced_two_pass_overlap_blend: ["linear", "smoothstep", "overwrite", "midpoint"].includes(String(source.advanced_two_pass_overlap_blend || "").toLowerCase())
+      ? String(source.advanced_two_pass_overlap_blend).toLowerCase()
+      : DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_overlap_blend,
+    advanced_two_pass_upscaler_device: ["cuda", "cpu"].includes(String(source.advanced_two_pass_upscaler_device || "").toLowerCase())
+      ? String(source.advanced_two_pass_upscaler_device).toLowerCase()
+      : DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_upscaler_device,
+    advanced_two_pass_upscaler_precision: ["fp32", "fp16", "bf16"].includes(String(source.advanced_two_pass_upscaler_precision || "").toLowerCase())
+      ? String(source.advanced_two_pass_upscaler_precision).toLowerCase()
+      : DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_upscaler_precision,
+    advanced_two_pass_pass1_resolution_preset: ["custom", "1k", "2k", "4k"].includes(String(source.advanced_two_pass_pass1_resolution_preset || "").toLowerCase())
+      ? String(source.advanced_two_pass_pass1_resolution_preset).toLowerCase()
+      : DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_pass1_resolution_preset,
+    advanced_two_pass_pass2_resolution_preset: ["custom", "1k", "2k", "4k"].includes(String(source.advanced_two_pass_pass2_resolution_preset || "").toLowerCase())
+      ? String(source.advanced_two_pass_pass2_resolution_preset).toLowerCase()
+      : DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_pass2_resolution_preset,
+    advanced_two_pass_defaults_version: DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_defaults_version,
+    ...Object.fromEntries([1, 2].flatMap((pass) => {
+      const prefix = `advanced_two_pass_pass${pass}_`;
+      const defaults = DEFAULT_MINIMAX_H3_SETTINGS;
+      return [
+        [`${prefix}megapixels`, Math.max(0.1, Math.min(16, Number(source[`${prefix}megapixels`] ?? defaults[`${prefix}megapixels`])))],
+        [`${prefix}steps`, Math.max(1, Math.min(1000, Math.trunc(Number(source[`${prefix}steps`] ?? defaults[`${prefix}steps`]) || defaults[`${prefix}steps`])))],
+        [`${prefix}denoise`, Math.max(0, Math.min(1, Number(source[`${prefix}denoise`] ?? defaults[`${prefix}denoise`])))],
+        [`${prefix}sampler`, String(source[`${prefix}sampler`] || defaults[`${prefix}sampler`])],
+        [`${prefix}scheduler`, String(source[`${prefix}scheduler`] || defaults[`${prefix}scheduler`])],
+        [`${prefix}seed`, Number.isFinite(Number(source[`${prefix}seed`])) ? Number(source[`${prefix}seed`]) : defaults[`${prefix}seed`]],
+      ];
+    })),
     ...Object.fromEntries([1, 2].flatMap((pass) => {
       const prefix = `two_pass_pass${pass}_`;
       const defaults = DEFAULT_MINIMAX_H3_SETTINGS;
@@ -523,13 +606,13 @@ function cloneMiniMaxH3Settings(value = {}) {
       const prefix = `three_pass_pass${pass}_`;
       const defaults = DEFAULT_MINIMAX_H3_SETTINGS;
       return [
-        [`${prefix}megapixels`, Math.max(0.1, Number(source[`${prefix}megapixels`] ?? defaults[`${prefix}megapixels`]))],
-        [`${prefix}steps`, Math.max(1, Math.min(1000, Math.trunc(Number(source[`${prefix}steps`] ?? defaults[`${prefix}steps`]) || defaults[`${prefix}steps`])))],
-        [`${prefix}denoise`, Math.max(0, Math.min(1, Number(source[`${prefix}denoise`] ?? defaults[`${prefix}denoise`])) )],
-        [`${prefix}sampler`, String(source[`${prefix}sampler`] || defaults[`${prefix}sampler`])],
-        [`${prefix}scheduler`, String(source[`${prefix}scheduler`] || defaults[`${prefix}scheduler`])],
-        [`${prefix}seed`, Number.isFinite(Number(source[`${prefix}seed`])) ? Number(source[`${prefix}seed`]) : defaults[`${prefix}seed`]],
-        [`${prefix}te_speed`, Boolean(source[`${prefix}te_speed`] ?? defaults[`${prefix}te_speed`])],
+        [`${prefix}megapixels`, Math.max(0.1, Number(hasCurrentAdvancedTwoPassDefaults ? (source[`${prefix}megapixels`] ?? defaults[`${prefix}megapixels`]) : defaults[`${prefix}megapixels`]))],
+        [`${prefix}steps`, Math.max(1, Math.min(1000, Math.trunc(Number(hasCurrentAdvancedTwoPassDefaults ? (source[`${prefix}steps`] ?? defaults[`${prefix}steps`]) : defaults[`${prefix}steps`]) || defaults[`${prefix}steps`])))],
+        [`${prefix}denoise`, Math.max(0, Math.min(1, Number(hasCurrentAdvancedTwoPassDefaults ? (source[`${prefix}denoise`] ?? defaults[`${prefix}denoise`]) : defaults[`${prefix}denoise`])) )],
+        [`${prefix}sampler`, String(hasCurrentAdvancedTwoPassDefaults ? (source[`${prefix}sampler`] || defaults[`${prefix}sampler`]) : defaults[`${prefix}sampler`])],
+        [`${prefix}scheduler`, String(hasCurrentAdvancedTwoPassDefaults ? (source[`${prefix}scheduler`] || defaults[`${prefix}scheduler`]) : defaults[`${prefix}scheduler`])],
+        [`${prefix}seed`, hasCurrentAdvancedTwoPassDefaults && Number.isFinite(Number(source[`${prefix}seed`])) ? Number(source[`${prefix}seed`]) : defaults[`${prefix}seed`]],
+        [`${prefix}te_speed`, Boolean(hasCurrentAdvancedTwoPassDefaults ? (source[`${prefix}te_speed`] ?? defaults[`${prefix}te_speed`]) : defaults[`${prefix}te_speed`])],
       ];
     })),
   };
@@ -556,6 +639,8 @@ const MINIMAX_H3_MODEL_DOWNLOADS = [
   { label: "Video VAE", url: "https://huggingface.co/Comfy-Org/MiniMax-H3/blob/main/vae/minimax_h3_video_vae_fp16.safetensors" },
   { label: "Audio VAE", url: "https://huggingface.co/Comfy-Org/MiniMax-H3/blob/main/vae/minimax_h3_audio_vae_fp32.safetensors" },
   { label: "Kijai MiniMax H3 LoRAs", url: "https://huggingface.co/Kijai/MiniMax-H3_comfy/tree/main/loras" },
+  { label: "MMH3 Ultimate Upscale custom nodes", url: "https://github.com/bbaudio-2025/Comfyui-MMH3-UltimateUpscale" },
+  { label: "MiniMax H3 latent upscaler models", url: "https://github.com/LBH-123-AI/Comfyui_Minimax_h3_latent_Upscaler" },
 ];
 const ZIMAGE_MODEL_DOWNLOADS = [
   { label: "Z-Image Turbo", url: "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors" },
@@ -2336,6 +2421,25 @@ async function postJson(url, payload, timeoutMs = 120000) {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+// Session snapshots must commit in the same order they were created. Lyric
+// edits and performer assignments can trigger autosave while Quick Save is
+// also in flight; without this queue an older snapshot can finish last and
+// restore stale lyrics/cast assignments.
+let builderSessionSaveQueue = Promise.resolve();
+let builderSessionSaveRevision = 0;
+
+function saveBuilderSessionJson(payload, timeoutMs = 60000) {
+  const revision = ++builderSessionSaveRevision;
+  payload.session = {
+    ...(payload.session || {}),
+    builder_save_revision: revision,
+  };
+  const save = () => postJson("/vrgdg/music_builder/save_session", payload, timeoutMs);
+  const result = builderSessionSaveQueue.then(save, save);
+  builderSessionSaveQueue = result.catch(() => null);
+  return result;
 }
 
 const GEMMA_VIDEO_PROMPT_TIMEOUT_MS = 600000;
@@ -5802,8 +5906,8 @@ function openBuilder(node) {
   applyCompactButtonLabel(miniMaxTwoPassButton, "Ref to Video\n2 Pass", { noMap: true, minWidth: 0, padding: "7px 6px", title: "Reference-to-Video two-pass upscale workflow" });
   miniMaxTwoPassButton.dataset.minimaxH3TwoPass = "true";
   miniMaxModeChooser.append(miniMaxTwoPassButton);
-  const miniMaxThreePassButton = makeButton("Ref to Video\n3 Pass");
-  applyCompactButtonLabel(miniMaxThreePassButton, "Ref to Video\n3 Pass", { noMap: true, minWidth: 0, padding: "7px 6px", title: "Reference-to-Video experimental three-pass workflow" });
+  const miniMaxThreePassButton = makeButton("Ref to Video\n2 Pass Advanced");
+  applyCompactButtonLabel(miniMaxThreePassButton, "Ref to Video\n2 Pass Advanced", { noMap: true, minWidth: 0, padding: "7px 6px", title: "MMH3 tiled and temporally chunked two-pass upscale workflow" });
   miniMaxThreePassButton.dataset.minimaxH3ThreePass = "true";
   miniMaxModeChooser.append(miniMaxThreePassButton);
   const miniMaxDiffusionModelPicker = makeSearchableLoraPicker(DEFAULT_MINIMAX_H3_SETTINGS.diffusion_model_name);
@@ -5949,6 +6053,7 @@ function openBuilder(node) {
     "dpmpp_3m_sde",
     "uni_pc",
     "deis",
+    "sa_solver",
   ];
   const threePassSchedulerOptions = [
     "beta",
@@ -5961,12 +6066,33 @@ function openBuilder(node) {
     "linear_quadratic",
     "kl_optimal",
   ];
-  const threePassControls = [1, 2, 3].map((pass) => {
-    const prefix = `three_pass_pass${pass}_`;
+  const advancedResolutionPresets = [
+    { value: "custom", label: "Custom megapixels" },
+    { value: "1k", label: "1K (long edge)" },
+    { value: "2k", label: "2K (long edge)" },
+    { value: "4k", label: "4K (long edge)" },
+  ];
+  const advancedPresetMegapixels = (preset, aspectRatio) => {
+    const match = String(aspectRatio || "16:9").match(/(\d+)\s*:\s*(\d+)/);
+    const ratioWidth = Number(match?.[1] || 16);
+    const ratioHeight = Number(match?.[2] || 9);
+    const longEdge = { "1k": 1024, "2k": 2048, "4k": 4096 }[String(preset || "").toLowerCase()];
+    if (!longEdge) return null;
+    const scale = longEdge / Math.max(ratioWidth, ratioHeight);
+    const width = Math.round(ratioWidth * scale / 32) * 32;
+    const height = Math.round(ratioHeight * scale / 32) * 32;
+    return Number(((width * height) / 1048576).toFixed(4));
+  };
+  const advancedTwoPassControls = [1, 2].map((pass) => {
+    const prefix = `advanced_two_pass_pass${pass}_`;
     const megapixels = makeInput(String(DEFAULT_MINIMAX_H3_SETTINGS[`${prefix}megapixels`]), "number");
     megapixels.min = "0.1";
     megapixels.max = "16";
     megapixels.step = "0.1";
+    const resolutionPreset = makeSelect(
+      advancedResolutionPresets,
+      DEFAULT_MINIMAX_H3_SETTINGS[`${prefix}resolution_preset`] || "custom",
+    );
     const steps = makeInput(String(DEFAULT_MINIMAX_H3_SETTINGS[`${prefix}steps`]), "number");
     steps.min = "1";
     steps.max = "1000";
@@ -5979,18 +6105,42 @@ function openBuilder(node) {
     const scheduler = makeSelect(threePassSchedulerOptions, DEFAULT_MINIMAX_H3_SETTINGS[`${prefix}scheduler`]);
     const seed = makeInput(String(DEFAULT_MINIMAX_H3_SETTINGS[`${prefix}seed`]), "number");
     seed.step = "1";
-    const teSpeed = makeCheckbox("Use TE-Speed-MiniMaxH3 (OSS)", DEFAULT_MINIMAX_H3_SETTINGS[`${prefix}te_speed`]);
-    const section = makeSettingsSection(`Pass ${pass}`, [
-      makeField("Resolution (megapixels)", megapixels),
+    const resolutionField = makeSettingsSection(
+      pass === 1 ? "Pass 1 resolution" : "Pass 2 resolution",
+      [
+        makeField("Resolution preset", resolutionPreset),
+        makeField("Custom megapixels", megapixels),
+      ],
+      false,
+    );
+    const syncResolutionPreset = () => {
+      const resolved = advancedPresetMegapixels(resolutionPreset.value, miniMaxAspectRatio.value);
+      megapixels.disabled = Boolean(resolved);
+      if (resolved !== null) megapixels.value = String(resolved);
+    };
+    resolutionPreset.addEventListener("change", syncResolutionPreset);
+    miniMaxAspectRatio.addEventListener("change", syncResolutionPreset);
+    syncResolutionPreset();
+    resolutionField.title =
+      pass === 1
+        ? "Base-generation resolution before MMH3 upscale."
+        : "Target latent resolution produced by the MMH3 tiled upscale pass.";
+    const samplingFields = [
       makeField("Steps", steps),
       makeField("Sampler", sampler),
       makeField("Scheduler", scheduler),
       makeField("Denoise", denoise),
       makeField("Seed", seed),
-      teSpeed.wrapper,
-    ], pass === 1);
-    return { prefix, megapixels, steps, denoise, sampler, scheduler, seed, teSpeed, section };
+    ];
+    return { prefix, megapixels, resolutionPreset, syncResolutionPreset, steps, denoise, sampler, scheduler, seed, resolutionField, samplingFields };
   });
+  const miniMaxAdvancedSamplingFields = makeSettingsSection("Pass Sampling (Advanced)", [
+    ...advancedTwoPassControls.map((control, index) => makeSettingsSection(
+      index === 0 ? "Pass 1 — Base Generation" : "Pass 2 — MMH3 Tiled Refinement",
+      control.samplingFields,
+      false,
+    )),
+  ], false);
   const twoPassControls = [1, 2].map((pass) => {
     const prefix = `two_pass_pass${pass}_`;
     const steps = makeInput(String(DEFAULT_MINIMAX_H3_SETTINGS[`${prefix}steps`]), "number");
@@ -6082,10 +6232,71 @@ function openBuilder(node) {
     ], false),
   ], false);
   miniMaxTwoPassSettings.style.display = "none";
-  const miniMaxThreePassSettings = makeSettingsSection("Three-Pass Experimental Settings", [
-    document.createTextNode("These controls apply when Ref to Video 3 Pass is selected. Defaults match the imported workflow."),
+  const miniMaxAdvancedVramPreset = makeSelect([
+    { value: "8gb", label: "8 GB — 352px tiles / 51 frames" },
+    { value: "12gb", label: "12 GB — 448px tiles / 68 frames" },
+    { value: "16gb", label: "16 GB — 544px tiles / 119 frames" },
+    { value: "24gb", label: "24 GB — 672px tiles / 153 frames" },
+    { value: "custom", label: "Custom — keep advanced values" },
+  ], DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_vram_preset);
+  const miniMaxAdvancedTileSizeMode = makeSelect([
+    { value: "specific_size", label: "Specific tile width / height" },
+    { value: "rows_cols", label: "Auto equal tiles by rows / columns" },
+  ], DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_tile_size_mode);
+  const makeMiniMaxAdvancedNumber = (key, min, max, step) => {
+    const input = makeInput(String(DEFAULT_MINIMAX_H3_SETTINGS[key]), "number");
+    input.min = String(min); input.max = String(max); input.step = String(step);
+    return input;
+  };
+  const miniMaxAdvancedTileWidth = makeMiniMaxAdvancedNumber("advanced_two_pass_tile_width", 32, 16384, 32);
+  const miniMaxAdvancedTileHeight = makeMiniMaxAdvancedNumber("advanced_two_pass_tile_height", 32, 16384, 32);
+  const miniMaxAdvancedGridRows = makeMiniMaxAdvancedNumber("advanced_two_pass_grid_rows", 1, 9, 1);
+  const miniMaxAdvancedGridCols = makeMiniMaxAdvancedNumber("advanced_two_pass_grid_cols", 1, 9, 1);
+  const miniMaxAdvancedChunkLength = makeMiniMaxAdvancedNumber("advanced_two_pass_chunk_length", 17, 100000, 17);
+  const miniMaxAdvancedTemporalOverlap = makeMiniMaxAdvancedNumber("advanced_two_pass_temporal_overlap", 0, 100000, 17);
+  const miniMaxAdvancedAnchorStrength = makeMiniMaxAdvancedNumber("advanced_two_pass_anchor_strength", 0, 1, 0.001);
+  const miniMaxAdvancedSpatialWOverlap = makeMiniMaxAdvancedNumber("advanced_two_pass_spatial_w_overlap", 0, 16384, 32);
+  const miniMaxAdvancedSpatialHOverlap = makeMiniMaxAdvancedNumber("advanced_two_pass_spatial_h_overlap", 0, 16384, 32);
+  const miniMaxAdvancedFadeWidth = makeMiniMaxAdvancedNumber("advanced_two_pass_fade_width", 0, 16384, 32);
+  const miniMaxAdvancedFadeHeight = makeMiniMaxAdvancedNumber("advanced_two_pass_fade_height", 0, 16384, 32);
+  const miniMaxAdvancedMinTileSize = makeMiniMaxAdvancedNumber("advanced_two_pass_min_tile_size", 0, 16384, 32);
+  const miniMaxAdvancedOverlapMode = makeSelect(["earlier", "later"], DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_overlap_mode);
+  const miniMaxAdvancedOverlapBlend = makeSelect(["linear", "smoothstep", "overwrite", "midpoint"], DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_overlap_blend);
+  const miniMaxAdvancedUpscalerDevice = makeSelect(["cuda", "cpu"], DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_upscaler_device);
+  const miniMaxAdvancedUpscalerPrecision = makeSelect(["bf16", "fp16", "fp32"], DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_upscaler_precision);
+  const miniMaxAdvancedLatentUpscalerPicker = makeSearchableLoraPicker(DEFAULT_MINIMAX_H3_SETTINGS.two_pass_latent_upscaler_name);
+  const miniMaxAdvancedUseTeSpeed = makeCheckbox("Use TE-Speed-MiniMaxH3 on Pass 1", DEFAULT_MINIMAX_H3_SETTINGS.two_pass_use_te_speed);
+  const miniMaxAdvancedDependencyNote = document.createElement("div");
+  miniMaxAdvancedDependencyNote.textContent = "Requires the latest Comfyui-MMH3-UltimateUpscale. Pass 1 is saved as a backup; Pass 2 uses temporal chunks and spatial tiles and becomes the final timeline clip.";
+  miniMaxAdvancedDependencyNote.style.cssText = "font-size:11px;color:#facc15;line-height:1.45;";
+  const miniMaxAdvancedTileFields = makeSettingsSection("Hidden MMH3 Advanced Settings", [
+    makeField("Tile sizing mode", miniMaxAdvancedTileSizeMode),
+    makeField("Tile width", miniMaxAdvancedTileWidth),
+    makeField("Tile height", miniMaxAdvancedTileHeight),
+    makeField("Grid rows", miniMaxAdvancedGridRows),
+    makeField("Grid columns", miniMaxAdvancedGridCols),
+    makeField("Chunk length (multiple of 17)", miniMaxAdvancedChunkLength),
+    makeField("Temporal overlap (multiple of 17)", miniMaxAdvancedTemporalOverlap),
+    makeField("Anchor strength", miniMaxAdvancedAnchorStrength),
+    makeField("Horizontal tile overlap", miniMaxAdvancedSpatialWOverlap),
+    makeField("Vertical tile overlap", miniMaxAdvancedSpatialHOverlap),
+    makeField("Fade width", miniMaxAdvancedFadeWidth),
+    makeField("Fade height", miniMaxAdvancedFadeHeight),
+    makeField("Minimum tile size", miniMaxAdvancedMinTileSize),
+    makeField("Overlap ownership", miniMaxAdvancedOverlapMode),
+    makeField("Overlap blend", miniMaxAdvancedOverlapBlend),
+    makeField("Upscaler device", miniMaxAdvancedUpscalerDevice),
+    makeField("Upscaler precision", miniMaxAdvancedUpscalerPrecision),
+  ], false);
+  const miniMaxThreePassSettings = makeSettingsSection("2 Pass Advanced — MMH3 Ultimate Upscale", [
+    miniMaxAdvancedDependencyNote,
+    makeField("VRAM preset", miniMaxAdvancedVramPreset, "Presets apply conservative tile and temporal chunk starting points from the MMH3 guide."),
     makeField("Reference image sizing", miniMaxThreePassRefImageSize, "Controls the MiniMax H3 reference-conditioning image-size mode. Default: max."),
-    ...threePassControls.map((item) => item.section),
+    makeField("Latent upscaler model", miniMaxAdvancedLatentUpscalerPicker.wrapper),
+    miniMaxAdvancedUseTeSpeed.wrapper,
+    ...advancedTwoPassControls.map((item) => item.resolutionField),
+    miniMaxAdvancedSamplingFields,
+    miniMaxAdvancedTileFields,
   ], false);
   miniMaxThreePassSettings.style.display = "none";
   const miniMaxEasyCacheBypass = makeCheckbox("Bypass EasyCache", DEFAULT_MINIMAX_H3_SETTINGS.easy_cache_bypass);
@@ -6244,7 +6455,13 @@ function openBuilder(node) {
   const miniMaxSpeakerAssignmentList = document.createElement("div");
   miniMaxSpeakerAssignmentList.style.cssText = "display:flex;flex-direction:column;gap:8px;";
   const miniMaxAddSpeakerCueButton = makeButton("Add Dialogue Cue", "primary");
-  miniMaxSpeakerAssignmentPanel.append(miniMaxSpeakerAssignmentNote, miniMaxSpeakerAssignmentList, miniMaxAddSpeakerCueButton);
+  const miniMaxAutoTimeBeforePrompt = makeCheckbox("Auto-time lyric cues before creating prompts", false);
+  miniMaxAutoTimeBeforePrompt.wrapper.style.cssText += "border:1px solid #155e75;border-radius:7px;background:#07111f;padding:10px;";
+  miniMaxAutoTimeBeforePrompt.input.title = "Before each MiniMax H3 prompt, enable exact lyric-to-shot timing and run Stable-ts on the scene audio.";
+  const miniMaxAutoTimeBeforePromptNote = document.createElement("div");
+  miniMaxAutoTimeBeforePromptNote.textContent = "When enabled, each MiniMax prompt waits for this scene's lyric timing to finish first. Requires scene lyric text, a mapped singer, and usable scene/project audio.";
+  miniMaxAutoTimeBeforePromptNote.style.cssText = "font-size:11px;color:#94a3b8;line-height:1.45;margin:-3px 4px 2px;";
+  miniMaxSpeakerAssignmentPanel.append(miniMaxSpeakerAssignmentNote, miniMaxAutoTimeBeforePrompt.wrapper, miniMaxAutoTimeBeforePromptNote, miniMaxSpeakerAssignmentList, miniMaxAddSpeakerCueButton);
   const miniMaxAudioNote = document.createElement("div");
   miniMaxAudioNote.style.cssText = "font-size:11px;color:#a1a1aa;line-height:1.4;";
   const useSceneMiniMaxH3Settings = makeCheckbox("Lock MiniMax mode, models, and video settings for this scene", false);
@@ -7145,6 +7362,7 @@ function openBuilder(node) {
     videoType: "singing",
     projectVideoEngine: "ltx",
     miniMaxH3Settings: cloneMiniMaxH3Settings(),
+    autoTimeSingerCuesBeforePrompt: false,
     miniMaxH3TwoPassEnabled: false,
     miniMaxH3ThreePassEnabled: false,
     imageModelMode: "zimage",
@@ -7398,8 +7616,12 @@ function openBuilder(node) {
       two_pass_final_width: miniMaxTwoPassFinalWidth.value,
       two_pass_final_height: miniMaxTwoPassFinalHeight.value,
       two_pass_latent_upscale_scale: miniMaxTwoPassLatentScale.value,
-      two_pass_latent_upscaler_name: miniMaxTwoPassLatentUpscalerPicker.input.value,
-      two_pass_use_te_speed: miniMaxTwoPassUseTeSpeed.input.checked,
+      two_pass_latent_upscaler_name: state.miniMaxH3ThreePassEnabled
+        ? miniMaxAdvancedLatentUpscalerPicker.input.value
+        : miniMaxTwoPassLatentUpscalerPicker.input.value,
+      two_pass_use_te_speed: state.miniMaxH3ThreePassEnabled
+        ? miniMaxAdvancedUseTeSpeed.input.checked
+        : miniMaxTwoPassUseTeSpeed.input.checked,
       two_pass_te_speed_processing_control: miniMaxTwoPassTeProcessingControl.value,
       two_pass_te_speed_start_percent: miniMaxTwoPassTeStart.value,
       two_pass_te_speed_end_percent: miniMaxTwoPassTeEnd.value,
@@ -7410,6 +7632,25 @@ function openBuilder(node) {
       two_pass_output_crf: miniMaxTwoPassOutputCrf.value,
       three_pass_lightx_lora_name: miniMaxThreePassLoraPicker.input.value,
       three_pass_lightx_lora_strength: miniMaxThreePassLoraStrength.value,
+      advanced_two_pass_vram_preset: miniMaxAdvancedVramPreset.value,
+      advanced_two_pass_defaults_version: DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_defaults_version,
+      advanced_two_pass_tile_size_mode: miniMaxAdvancedTileSizeMode.value,
+      advanced_two_pass_tile_width: miniMaxAdvancedTileWidth.value,
+      advanced_two_pass_tile_height: miniMaxAdvancedTileHeight.value,
+      advanced_two_pass_grid_rows: miniMaxAdvancedGridRows.value,
+      advanced_two_pass_grid_cols: miniMaxAdvancedGridCols.value,
+      advanced_two_pass_chunk_length: miniMaxAdvancedChunkLength.value,
+      advanced_two_pass_temporal_overlap: miniMaxAdvancedTemporalOverlap.value,
+      advanced_two_pass_anchor_strength: miniMaxAdvancedAnchorStrength.value,
+      advanced_two_pass_spatial_w_overlap: miniMaxAdvancedSpatialWOverlap.value,
+      advanced_two_pass_spatial_h_overlap: miniMaxAdvancedSpatialHOverlap.value,
+      advanced_two_pass_fade_width: miniMaxAdvancedFadeWidth.value,
+      advanced_two_pass_fade_height: miniMaxAdvancedFadeHeight.value,
+      advanced_two_pass_min_tile_size: miniMaxAdvancedMinTileSize.value,
+      advanced_two_pass_overlap_mode: miniMaxAdvancedOverlapMode.value,
+      advanced_two_pass_overlap_blend: miniMaxAdvancedOverlapBlend.value,
+      advanced_two_pass_upscaler_device: miniMaxAdvancedUpscalerDevice.value,
+      advanced_two_pass_upscaler_precision: miniMaxAdvancedUpscalerPrecision.value,
       ...Object.fromEntries(twoPassControls.flatMap((control) => [
         [`${control.prefix}steps`, control.steps.value],
         [`${control.prefix}denoise`, control.denoise.value],
@@ -7417,14 +7658,14 @@ function openBuilder(node) {
         [`${control.prefix}scheduler`, control.scheduler.value],
         [`${control.prefix}seed`, control.seed.value],
       ])),
-      ...Object.fromEntries(threePassControls.flatMap((control) => [
+      ...Object.fromEntries(advancedTwoPassControls.flatMap((control) => [
+        [`${control.prefix}resolution_preset`, control.resolutionPreset.value],
         [`${control.prefix}megapixels`, control.megapixels.value],
         [`${control.prefix}steps`, control.steps.value],
         [`${control.prefix}denoise`, control.denoise.value],
         [`${control.prefix}sampler`, control.sampler.value],
         [`${control.prefix}scheduler`, control.scheduler.value],
         [`${control.prefix}seed`, control.seed.value],
-        [`${control.prefix}te_speed`, control.teSpeed.input.checked],
       ])),
       easy_cache_bypass: miniMaxEasyCacheBypass.input.checked,
       easy_cache_bypass_before_turbo: turboEnabled
@@ -7543,6 +7784,11 @@ function openBuilder(node) {
     const enabled = Boolean(miniMaxProject && segment && !segment.no_character_present && ((shortFilm && settings.audio_mode === "built_in_audio") || singerMode));
     const speakers = enabled ? miniMaxMappedSpeakersForSegment(segment) : [];
     miniMaxSpeakerAssignmentList.replaceChildren();
+    miniMaxAutoTimeBeforePrompt.input.checked = Boolean(state.autoTimeSingerCuesBeforePrompt);
+    miniMaxAutoTimeBeforePrompt.input.onchange = () => {
+      state.autoTimeSingerCuesBeforePrompt = Boolean(miniMaxAutoTimeBeforePrompt.input.checked);
+      autoSaveSessionQuiet("MiniMax auto-time-before-prompt setting changed").catch(() => null);
+    };
     miniMaxAddSpeakerCueButton.disabled = !enabled || !speakers.length || (singerMode && segment?.lyric_performance_mode !== "cue_map");
     miniMaxAddSpeakerCueButton.textContent = singerMode ? "Add Lyric Cue" : "Add Dialogue Cue";
     miniMaxAddSpeakerCueButton.style.display = (singerMode || isMiniMaxBuiltInSpeakerAssignmentMode(segment)) ? "none" : "";
@@ -7744,7 +7990,6 @@ function openBuilder(node) {
         typeSelect.addEventListener("change", () => {
           cue.type = typeSelect.value === "instrumental" ? "instrumental" : "vocal";
           if (cue.type === "instrumental") {
-            shiftCueLyricTextDown(cues, index, cue.text, selectedPerformers[index % selectedPerformers.length] || selectedPerformers[0] || speakers[0] || {});
             cue.action_note = cue.action_note || "";
             cue.text = "";
             cue.singer_id = "";
@@ -8094,7 +8339,9 @@ function openBuilder(node) {
     miniMaxTwoPassFinalHeight.value = String(settings.two_pass_final_height);
     miniMaxTwoPassLatentScale.value = String(settings.two_pass_latent_upscale_scale);
     miniMaxTwoPassLatentUpscalerPicker.input.value = settings.two_pass_latent_upscaler_name;
+    miniMaxAdvancedLatentUpscalerPicker.input.value = settings.two_pass_latent_upscaler_name;
     miniMaxTwoPassUseTeSpeed.input.checked = Boolean(settings.two_pass_use_te_speed);
+    miniMaxAdvancedUseTeSpeed.input.checked = Boolean(settings.two_pass_use_te_speed);
     miniMaxTwoPassTeProcessingControl.value = String(settings.two_pass_te_speed_processing_control);
     miniMaxTwoPassTeStart.value = String(settings.two_pass_te_speed_start_percent);
     miniMaxTwoPassTeEnd.value = String(settings.two_pass_te_speed_end_percent);
@@ -8105,6 +8352,24 @@ function openBuilder(node) {
     miniMaxTwoPassOutputCrf.value = String(settings.two_pass_output_crf);
     miniMaxThreePassLoraPicker.input.value = settings.three_pass_lightx_lora_name;
     miniMaxThreePassLoraStrength.value = String(settings.three_pass_lightx_lora_strength);
+    miniMaxAdvancedVramPreset.value = settings.advanced_two_pass_vram_preset;
+    miniMaxAdvancedTileSizeMode.value = settings.advanced_two_pass_tile_size_mode;
+    miniMaxAdvancedTileWidth.value = String(settings.advanced_two_pass_tile_width);
+    miniMaxAdvancedTileHeight.value = String(settings.advanced_two_pass_tile_height);
+    miniMaxAdvancedGridRows.value = String(settings.advanced_two_pass_grid_rows);
+    miniMaxAdvancedGridCols.value = String(settings.advanced_two_pass_grid_cols);
+    miniMaxAdvancedChunkLength.value = String(settings.advanced_two_pass_chunk_length);
+    miniMaxAdvancedTemporalOverlap.value = String(settings.advanced_two_pass_temporal_overlap);
+    miniMaxAdvancedAnchorStrength.value = String(settings.advanced_two_pass_anchor_strength);
+    miniMaxAdvancedSpatialWOverlap.value = String(settings.advanced_two_pass_spatial_w_overlap);
+    miniMaxAdvancedSpatialHOverlap.value = String(settings.advanced_two_pass_spatial_h_overlap);
+    miniMaxAdvancedFadeWidth.value = String(settings.advanced_two_pass_fade_width);
+    miniMaxAdvancedFadeHeight.value = String(settings.advanced_two_pass_fade_height);
+    miniMaxAdvancedMinTileSize.value = String(settings.advanced_two_pass_min_tile_size);
+    miniMaxAdvancedOverlapMode.value = settings.advanced_two_pass_overlap_mode;
+    miniMaxAdvancedOverlapBlend.value = settings.advanced_two_pass_overlap_blend;
+    miniMaxAdvancedUpscalerDevice.value = settings.advanced_two_pass_upscaler_device;
+    miniMaxAdvancedUpscalerPrecision.value = settings.advanced_two_pass_upscaler_precision;
     twoPassControls.forEach((control) => {
       control.steps.value = String(settings[`${control.prefix}steps`]);
       control.denoise.value = String(settings[`${control.prefix}denoise`]);
@@ -8112,14 +8377,15 @@ function openBuilder(node) {
       control.scheduler.value = settings[`${control.prefix}scheduler`];
       control.seed.value = String(settings[`${control.prefix}seed`]);
     });
-    threePassControls.forEach((control) => {
+    advancedTwoPassControls.forEach((control) => {
+      control.resolutionPreset.value = settings[`${control.prefix}resolution_preset`] || "custom";
       control.megapixels.value = String(settings[`${control.prefix}megapixels`]);
+      control.syncResolutionPreset();
       control.steps.value = String(settings[`${control.prefix}steps`]);
       control.denoise.value = String(settings[`${control.prefix}denoise`]);
       control.sampler.value = settings[`${control.prefix}sampler`];
       control.scheduler.value = settings[`${control.prefix}scheduler`];
       control.seed.value = String(settings[`${control.prefix}seed`]);
-      control.teSpeed.input.checked = Boolean(settings[`${control.prefix}te_speed`]);
     });
     const multiPassMode = state.miniMaxH3TwoPassEnabled || state.miniMaxH3ThreePassEnabled;
     miniMaxMegapixelsField.style.display = multiPassMode ? "none" : "";
@@ -8127,8 +8393,8 @@ function openBuilder(node) {
     miniMaxAdvancedSettings.style.display = multiPassMode ? "none" : "";
     miniMaxTwoPassSettings.style.display = state.miniMaxH3TwoPassEnabled ? "" : "none";
     miniMaxThreePassSettings.style.display = state.miniMaxH3ThreePassEnabled ? "" : "none";
-    miniMaxTwoPassLoraSection.style.display = state.miniMaxH3TwoPassEnabled ? "" : "none";
-    miniMaxThreePassLoraSection.style.display = state.miniMaxH3ThreePassEnabled ? "" : "none";
+    miniMaxTwoPassLoraSection.style.display = (state.miniMaxH3TwoPassEnabled || state.miniMaxH3ThreePassEnabled) ? "" : "none";
+    miniMaxThreePassLoraSection.style.display = "none";
     miniMaxEasyCacheBypass.input.checked = settings.easy_cache_bypass;
     miniMaxEasyCacheReuseThreshold.value = String(settings.easy_cache_reuse_threshold);
     miniMaxEasyCacheStartPercent.value = String(settings.easy_cache_start_percent);
@@ -8199,12 +8465,12 @@ function openBuilder(node) {
     const threePass = Boolean(state.miniMaxH3ThreePassEnabled) && mode === "reference_to_video";
     const hideMultiPassIgnoredSettings = twoPass || threePass;
     miniMaxLoraSlots.forEach((slot) => {
-      slot.applyToField.style.display = twoPass ? "flex" : "none";
-      slot.row.style.gridTemplateColumns = twoPass
+      slot.applyToField.style.display = (twoPass || threePass) ? "flex" : "none";
+      slot.row.style.gridTemplateColumns = (twoPass || threePass)
         ? "minmax(0,1fr) 92px minmax(120px,0.45fr)"
         : "minmax(0,1fr) 92px";
     });
-    if (twoPass) {
+    if (twoPass || threePass) {
       miniMaxLoraNote.textContent = settings.use_loras
         ? "Extra LoRAs are ON. Each can target pass 1, pass 2, or both. The required Turbo LoRA remains separate and pass-2-only."
         : "Optional extra LoRAs are OFF. Enable them, choose a count, then select the target pass for each LoRA.";
@@ -11458,17 +11724,23 @@ function openBuilder(node) {
       ? String(segment.lyric_performance_mode || "").trim()
       : "together";
     segment.lyric_cue_map = Array.isArray(segment.lyric_cue_map)
-      ? segment.lyric_cue_map.map((cue) => ({
-        type: ["instrumental", "vocal"].includes(String(cue?.type || "").trim()) ? String(cue.type).trim() : "vocal",
-        text: String(cue?.text || "").trim(),
-        action_note: String(cue?.action_note || cue?.actionNote || cue?.note || "").trim(),
-        singer_id: String(cue?.singer_id || cue?.singerId || cue?.subject_id || cue?.subjectId || "").trim(),
-        singer_name: String(cue?.singer_name || cue?.singerName || cue?.name || "").trim(),
-        start: Number.isFinite(Number(cue?.start)) ? Math.max(0, Number(cue.start)) : null,
-        end: Number.isFinite(Number(cue?.end)) ? Math.max(0, Number(cue.end)) : null,
-        vocal_start: Number.isFinite(Number(cue?.vocal_start)) ? Math.max(0, Number(cue.vocal_start)) : null,
-        vocal_end: Number.isFinite(Number(cue?.vocal_end)) ? Math.max(0, Number(cue.vocal_end)) : null,
-      })).filter((cue) => cue.type === "instrumental" || cue.text || cue.action_note)
+      ? segment.lyric_cue_map.map((cue) => {
+        const type = ["instrumental", "vocal"].includes(String(cue?.type || "").trim()) ? String(cue.type).trim() : "vocal";
+        const cueTime = (value) => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value))
+          ? Math.max(0, Number(value))
+          : null;
+        return {
+          type,
+          text: String(cue?.text || "").trim(),
+          action_note: String(cue?.action_note || cue?.actionNote || cue?.note || "").trim(),
+          singer_id: String(cue?.singer_id || cue?.singerId || cue?.subject_id || cue?.subjectId || "").trim(),
+          singer_name: String(cue?.singer_name || cue?.singerName || cue?.name || "").trim(),
+          start: cueTime(cue?.start),
+          end: cueTime(cue?.end),
+          vocal_start: type === "vocal" ? cueTime(cue?.vocal_start) : null,
+          vocal_end: type === "vocal" ? cueTime(cue?.vocal_end) : null,
+        };
+      }).filter((cue) => cue.type === "instrumental" || cue.text || cue.action_note)
       : [];
     segment.minimax_speaker_assignments = normalizeMiniMaxSpeakerAssignments(
       segment.minimax_speaker_assignments || segment.speaker_assignments || segment.dialogue_cues || [],
@@ -23106,9 +23378,15 @@ function openBuilder(node) {
 
   function normalizeLyricCueMapForSegment(segment, refs = normalizeFluxReferenceBuilder(state.fluxReferenceBuilder), options = {}) {
     const performers = selectedPerformerSubjectsForSegment(segment, refs);
-    const allowsSoloTimedCues = performers.length === 1 && Boolean(segment?.lyric_shot_word_timing_enabled);
-    if ((!allowsSoloTimedCues && performers.length < 2) || String(segment?.lyric_performance_mode || "together") !== "cue_map") return [];
     const existing = Array.isArray(segment?.lyric_cue_map) ? segment.lyric_cue_map : [];
+    // An explicit cue map is authoritative even for one singer. The old
+    // checkbox gate silently discarded manually assigned instrumental/lyric
+    // rows, so the LLM only saw the scene's full lyric and singer name.
+    if (String(segment?.lyric_performance_mode || "together") !== "cue_map") return [];
+    // Existing rows already carry their singer ID/name and must survive even
+    // when a transient Storyboard clone has no performer list. Only generated
+    // (not manually authored) cue maps require performer discovery here.
+    if (!existing.length && (performers.length < 2 && !segment?.lyric_shot_word_timing_enabled)) return [];
     const parts = existing.length ? existing : lyricCueTextParts(segment?.lyric_text).map((text, index) => {
       const performer = performers[index % performers.length] || performers[0] || {};
       return { text, singer_id: performer.id || "", singer_name: performer.name || "" };
@@ -23119,16 +23397,19 @@ function openBuilder(node) {
         || performers.find((subject) => String(subject.name || "").toLowerCase() === String(cue?.singer_name || "").toLowerCase())
         || performers[index % performers.length]
         || null;
+      const cueTime = (value) => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value))
+        ? Math.max(0, Number(value))
+        : null;
       return {
         type,
         text: flattenLyricForPrompt(cue?.text),
         action_note: String(cue?.action_note || cue?.actionNote || cue?.note || "").trim(),
         singer_id: String(performer?.id || cue?.singer_id || "").trim(),
         singer_name: String(performer?.name || cue?.singer_name || "").trim(),
-        start: Number.isFinite(Number(cue?.start)) ? Math.max(0, Number(cue.start)) : null,
-        end: Number.isFinite(Number(cue?.end)) ? Math.max(0, Number(cue.end)) : null,
-        vocal_start: Number.isFinite(Number(cue?.vocal_start)) ? Math.max(0, Number(cue.vocal_start)) : null,
-        vocal_end: Number.isFinite(Number(cue?.vocal_end)) ? Math.max(0, Number(cue.vocal_end)) : null,
+        start: cueTime(cue?.start),
+        end: cueTime(cue?.end),
+        vocal_start: type === "vocal" ? cueTime(cue?.vocal_start) : null,
+        vocal_end: type === "vocal" ? cueTime(cue?.vocal_end) : null,
       };
     }).filter((cue) => options.preserveBlank || cue.type === "instrumental" || cue.text);
   }
@@ -23145,13 +23426,13 @@ function openBuilder(node) {
         const timing = miniMaxH3CueTimingText(cue, segment, cueMap, index);
         if (cue.type === "instrumental") {
           const note = cue.action_note ? ` Action note: ${cue.action_note}` : "";
-          return `${timing}Instrumental / no vocal cue. No visible subject sings or lip-syncs; mouths stay closed or naturally relaxed.${note}`;
+          return `${timing}Use only the assigned visual action and camera direction for this interval.${note}`;
         }
         const subject = performers.find((item) => String(item.id) === String(cue.singer_id)) || { id: cue.singer_id, name: cue.singer_name };
         const vocalStart = Number(cue.vocal_start);
         const vocalEnd = Number(cue.vocal_end);
         const vocalWindow = Number.isFinite(vocalStart) && Number.isFinite(vocalEnd) && vocalEnd > vocalStart
-          ? ` Vocal lip-sync occurs only from ${vocalStart.toFixed(3)}s-${vocalEnd.toFixed(3)}s; before and after that window the mouth stays closed or naturally relaxed.`
+          ? ` The assigned performer lip-syncs from ${vocalStart.toFixed(3)}s-${vocalEnd.toFixed(3)}s.`
           : "";
         return `${timing}${miniMaxH3PerformerLabel(subject, labelMap)} performs "${miniMaxH3PunctuatedCueText(cue.text)}" from <Audio 1>.${vocalWindow}`;
       });
@@ -23159,7 +23440,7 @@ function openBuilder(node) {
       return [
         "Vocal cue map:",
         ...lines,
-        "Only the assigned performer sings or speaks each cue. Other visible performers remain silent, mouth closed or naturally reacting, until assigned their own cue.",
+        "Apply performer assignments only to vocal cues; use visual action and camera direction for all other cue rows.",
       ].join("\n");
     }
     if (performers.length === 1 && lyricText) {
@@ -23275,20 +23556,20 @@ function openBuilder(node) {
         : `from ${start.toFixed(3)}s`;
       if (cue.type === "instrumental") {
         const note = String(cue.action_note || "").trim();
-        return `[Shot ${index + 1}] ${timing}: instrumental/no vocal. No visible subject sings or lip-syncs.${note ? ` Visual action note: ${note}` : ""}`;
+        return `[Shot ${index + 1}] ${timing}: use only the assigned visual action and camera direction.${note ? ` Visual action note: ${note}` : ""}`;
       }
       const subject = performers.find((item) => String(item.id) === String(cue.singer_id)) || { id: cue.singer_id, name: cue.singer_name };
       const vocalStart = Number(cue.vocal_start);
       const vocalEnd = Number(cue.vocal_end);
       const vocalWindow = Number.isFinite(vocalStart) && Number.isFinite(vocalEnd) && vocalEnd > vocalStart
-        ? ` The singer begins lip-syncing only at ${vocalStart.toFixed(3)}s and stops at ${vocalEnd.toFixed(3)}s. Before and after that exact vocal window, the singer's mouth stays closed or naturally relaxed.`
+        ? ` The singer lip-syncs from ${vocalStart.toFixed(3)}s to ${vocalEnd.toFixed(3)}s.`
         : "";
       return `[Shot ${index + 1}] ${timing}: ${miniMaxH3PerformerLabel(subject, labelMap)} is the only performer singing/lip-syncing <d>[English] ${miniMaxH3PunctuatedCueText(cue.text)}</d> from <Audio 1>.${vocalWindow} Other visible performers remain silent, mouth closed or naturally reacting.`;
     });
     return [
       "Timed singer/lyric shot contract — authoritative:",
       ...lines,
-      "Each listed cue is its own shot. Do not swap singers, merge lyric cues, anticipate a later lyric, or make any visible performer sing outside the exact assigned vocal window.",
+      "Each listed cue is its own shot. Do not swap singers, merge lyric cues, or anticipate a later vocal cue. Apply vocal direction only to the assigned vocal row and its exact timing.",
     ].join("\n");
   }
 
@@ -23574,7 +23855,7 @@ function openBuilder(node) {
   }
 
   async function autoTimeMiniMaxSingerCuesForSegment(segment) {
-    if (!segment || !isMiniMaxSingerAssignmentMode(segment)) return;
+    if (!segment) return false;
     const progress = createProgressWindow("Auto Time Singer Cues");
     try {
       const exactShotTiming = Boolean(segment.lyric_shot_word_timing_enabled);
@@ -23612,10 +23893,12 @@ function openBuilder(node) {
       progress.set(`Auto timing complete.\nVocal cues: ${vocalReturned}\nInstrumental gaps: ${instrumentalReturned}${exactShotTiming && shotAligned.length ? "\nExact words matched to storyboard shots." : ""}${warning}`, 100);
       progress.close(2600);
       toast("Singer cue timing filled. Review with Play Cue before rendering.");
+      return true;
     } catch (error) {
       progress.set(`Error:\n${String(error?.message || error)}`, 100);
       progress.close(6000);
       toast(String(error?.message || error), true);
+      return false;
     }
   }
 
@@ -31366,7 +31649,6 @@ Chrome vault corridor: A sealed industrial passage...</pre>
             type.onchange = () => {
               row.type = type.value === "instrumental" ? "instrumental" : "vocal";
               if (row.type === "instrumental") {
-                shiftCueLyricTextDown(rows, index, row.text, performers[index % performers.length] || performers[0] || {});
                 row.action_note = row.action_note || "";
                 row.text = "";
                 row.singer_id = "";
@@ -31592,6 +31874,7 @@ Chrome vault corridor: A sealed industrial passage...</pre>
           if (present.size) refs.subject_scene_map[segment.id] = Array.from(present);
           syncPerformerInspectorForSegment(segment);
           renderMapping();
+          autoSaveSessionQuiet("performer assignment changed").catch(() => null);
         };
         const selectedPerformerIds = Array.from(performerSelect.selectedOptions || []).map((option) => option.value);
         const performerPreview = markVisualPicker(makeMappingPreview(subjectPreviewItems(new Set(selectedPerformerIds)), "Choose singer / speaker"));
@@ -31610,6 +31893,7 @@ Chrome vault corridor: A sealed industrial passage...</pre>
             if (present.size) refs.subject_scene_map[segment.id] = Array.from(present);
             syncPerformerInspectorForSegment(segment);
             renderMapping();
+            autoSaveSessionQuiet("performer assignment changed").catch(() => null);
           },
         });
         performerPanel.append(performerTitle, performerSelect, performerPreview);
@@ -32270,7 +32554,10 @@ Chrome vault corridor: A sealed industrial passage...</pre>
       syncPerformerInspectorForSegment(activeSegment());
       syncMiniMaxH3Panel();
       render();
-      await autoSaveSessionQuiet(`${referenceBuilderTargetLabel} reference builder`);
+      // This is an explicit Save action and must work even when optional
+      // autosave is disabled. It also needs the backend's manifest/context
+      // validation before the modal can report success.
+      await saveSession({ quiet: true, throwOnError: true });
       toast(`${referenceBuilderTargetLabel} reference builder saved.`);
       backdrop.remove();
     };
@@ -36322,6 +36609,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       minimax_h3_settings: cloneMiniMaxH3Settings(state.miniMaxH3Settings),
         minimax_h3_two_pass: Boolean(state.miniMaxH3TwoPassEnabled),
         minimax_h3_three_pass: Boolean(state.miniMaxH3ThreePassEnabled),
+        minimax_h3_advanced_two_pass: Boolean(state.miniMaxH3ThreePassEnabled),
       image_model_mode: state.imageModelMode,
       zimage_settings: state.zimageSettings,
       reference_krea2_settings: cloneKrea2ReferenceSettings(state.referenceKrea2Settings),
@@ -36457,6 +36745,24 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     return folder;
   }
 
+  async function projectContextFilesForSessionSave() {
+    const files = {};
+    const entries = [
+      ["storyconcept.txt", storyIdeaInput.value || state.storyIdeaPath],
+      ["subjectsandscenes.txt", subjectSceneInput.value || state.subjectScenePath],
+      ["themestyle.txt", themeStyleInput.value || state.themeStylePath],
+    ];
+    for (const [filename, path] of entries) {
+      let content = await loadContextTextQuiet(path);
+      // Subject/scene context is also represented by the reference builder.
+      // Keep that canonical data available even when the legacy text file was
+      // never populated or points at an old shared TextFiles location.
+      if (filename === "subjectsandscenes.txt" && !content) content = referenceBuilderSubjectLocationText();
+      files[filename] = String(content || "").trim();
+    }
+    return files;
+  }
+
   async function stopCurrentWorkflow() {
     state.batchCancelled = true;
     pauseAllAudio();
@@ -36502,10 +36808,11 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         return null;
       }
       await persistIngredientsSheetImages(projectFolder);
-      const data = await postJson("/vrgdg/music_builder/save_session", {
+      const data = await saveBuilderSessionJson({
         audio_path: audioInput.value,
         project_folder: projectFolder,
         session: currentSessionData(),
+        project_context_files: await projectContextFilesForSessionSave(),
       }, 60000);
       await syncPromptJsonFromSegments("session save");
       await syncI2VMotionJsonFromSegments("session save");
@@ -36611,7 +36918,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         state.projectVideoEngine = normalizeProjectVideoEngine(data.session.video_engine ?? state.projectVideoEngine);
         state.miniMaxH3Settings = cloneMiniMaxH3Settings(data.session.minimax_h3_settings || state.miniMaxH3Settings);
         state.miniMaxH3TwoPassEnabled = Boolean(data.session.minimax_h3_two_pass ?? state.miniMaxH3TwoPassEnabled);
-        state.miniMaxH3ThreePassEnabled = Boolean(data.session.minimax_h3_three_pass ?? state.miniMaxH3ThreePassEnabled);
+        state.miniMaxH3ThreePassEnabled = Boolean(data.session.minimax_h3_advanced_two_pass ?? data.session.minimax_h3_three_pass ?? state.miniMaxH3ThreePassEnabled);
         state.imageModelMode = data.session.image_model_mode || data.session.flux_klein_settings?.image_model_mode || state.imageModelMode || "zimage";
         state.pxPerSecond = state.timelineZoom;
         waveformModeSelect.value = state.waveformMode;
@@ -36669,10 +36976,11 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     const projectFolder = activeProjectFolderForSave();
     if (!projectFolder) throw new Error("Create or load a project before rendering scene videos.");
     await persistIngredientsSheetImages(projectFolder);
-    const data = await postJson("/vrgdg/music_builder/save_session", {
+    const data = await saveBuilderSessionJson({
       audio_path: audioInput.value,
       project_folder: projectFolder,
       session: currentSessionData(),
+      project_context_files: await projectContextFilesForSessionSave(),
     }, 60000);
     await syncPromptJsonFromSegments("scene video save");
     await syncI2VMotionJsonFromSegments("scene video save");
@@ -36704,10 +37012,11 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         return false;
       }
       await persistIngredientsSheetImages(projectFolder);
-      const data = await postJson("/vrgdg/music_builder/save_session", {
+      const data = await saveBuilderSessionJson({
         audio_path: audioInput.value,
         project_folder: projectFolder,
         session: currentSessionData(),
+        project_context_files: await projectContextFilesForSessionSave(),
       }, 60000);
       state.projectFolder = data.project_folder || state.projectFolder;
       state.sessionPath = data.session_path || state.sessionPath;
@@ -36860,6 +37169,10 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         project_folder: folder,
       });
       const session = data.session || {};
+      builderSessionSaveRevision = Math.max(
+        builderSessionSaveRevision,
+        Number(session.builder_save_revision || 0) || 0,
+      );
       faceFixTool.reset?.();
       pushHistory();
       state.segments = Array.isArray(session.segments) ? session.segments : [];
@@ -36965,7 +37278,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       state.projectVideoEngine = normalizeProjectVideoEngine(session.video_engine);
       state.miniMaxH3Settings = cloneMiniMaxH3Settings(session.minimax_h3_settings || {});
       state.miniMaxH3TwoPassEnabled = Boolean(session.minimax_h3_two_pass);
-      state.miniMaxH3ThreePassEnabled = Boolean(session.minimax_h3_three_pass);
+      state.miniMaxH3ThreePassEnabled = Boolean(session.minimax_h3_advanced_two_pass ?? session.minimax_h3_three_pass);
       state.imageModelMode = session.image_model_mode || session.flux_klein_settings?.image_model_mode || state.imageModelMode || "zimage";
       state.pxPerSecond = state.timelineZoom;
       waveformModeSelect.value = state.waveformMode;
@@ -39985,6 +40298,9 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     parts.push(
       `MANDATORY CHARACTER BUDGET: The Builder's required H3 sections use ${characterBudget.fixedChars} characters. The combined text inside all ${shotPlan.length} JSON description values must not exceed ${characterBudget.shotDescriptionChars} characters total (about ${perShotBudget} per shot). Stay within this combined limit; be concise without omitting required subjects, actions, camera direction, or vocal cues. Do not spend this budget repeating subject definitions, retention, soundtrack preservation, timestamps, or section boilerplate because the Builder adds those separately.`
     );
+    parts.push(
+      "SHOT PROSE QUALITY — MANDATORY: Preserve rich, concrete visual detail in every shot. Write complete grammatical cinematic prose, not notes, labels, telegraphic shorthand, compressed summaries, or fragments. Do not replace named subjects with S1/S2 shorthand, reduce actions to words such as 'mouths' or 'plays', or discard wardrobe, environment, lighting, camera movement, performer actions, and continuity details. Keep all meaningful visual detail from the scene context while avoiding only redundant lyric boilerplate."
+    );
     const cutTimes = shotPlan.slice(1).map((shot) => shot.timecode);
     if (cutTimes.length) {
       parts.push(`Builder cut times for your planning only: ${cutTimes.join(", ")}. Do not write these times.`);
@@ -40003,8 +40319,11 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     if (cameraMotionSpeed >= 7) {
       parts.push("Camera rule: use energetic, visibly active camera movement; avoid slow/static/locked-off language.");
     }
+    const cueShotContract = miniMaxH3CueShotContractText(segment, mode);
     if (characterMotionSpeed >= 4) {
-      parts.push("Character rule: include clear body action, gesture, step, or set interaction in addition to visible singing and lip sync. Mouth movement alone is not enough, but do not omit or suppress the required lip sync.");
+      parts.push(cueShotContract
+        ? "Character rule: include clear body action, gesture, step, or set interaction. Singing and lip sync occur only in vocal cue shots; instrumental cue shots remain completely non-vocal."
+        : "Character rule: include clear body action, gesture, step, or set interaction in addition to visible singing and lip sync. Mouth movement alone is not enough, but do not omit or suppress the required lip sync.");
     }
     if (segment?.no_character_present) {
       parts.push("Vocal performance: no visible character / no lip sync. Do not invent a visible singer or speaker.");
@@ -40014,19 +40333,20 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       parts.push("Vocal performance: speaking with exact dialogue lip sync. Use the stable visible speaker label and (S1), and place every spoken cue inside <d>[English] exact words with final punctuation.</d>. Mention the visible speaking action naturally in the shot descriptions, but do not write separate audio sections.");
       add(parts, "Exact dialogue order", miniMaxDialogueOrderText(segment) || `The assigned speaker says exactly: "${lyricText}"`);
       add(parts, "Timed native dialogue cue map", miniMaxBuiltInDialogueCueMapText(segment), 1800);
+    } else if (lyricText && cueShotContract) {
+      parts.push("TIMED VOCAL CUES ONLY: Follow the timed singer/shot contract exactly. Never place, anticipate, continue, or repeat a lyric in an instrumental shot. A performer sings and lip-syncs only inside the specifically assigned vocal cue shot.");
     } else if (lyricText) {
       parts.push("MANDATORY VOCAL PERFORMANCE: The assigned subject is visibly singing the exact supplied lyric/audio during this scene. Use the stable visible subject label and speaker ID, and place every performed lyric cue inside <d>[English] exact words with final punctuation.</d>. Show clear, natural mouth, lip, jaw, and facial movement synchronized to the audible vocal. Never describe the lips as closed, still, motionless, or sealed while the assigned vocal is being performed. Body action is required in addition to lip sync; it does not replace lip sync. Non-verbal vocals such as oooh, ah, humming, and sustained notes still require visible mouth movement. Mention the visible singing action naturally in the shot descriptions, but do not write separate audio sections or repeat boilerplate in every cut.");
       add(parts, "Exact lyric line", lyricText);
     } else {
       parts.push("Vocal performance: no exact lyric or dialogue is assigned to this scene.");
     }
-    const cueShotContract = miniMaxH3CueShotContractText(segment, mode);
     if (cueShotContract) add(parts, "Timed singer / shot contract", cueShotContract, 1800);
     const vocalCueMap = miniMaxH3VocalCueMapText(segment, mode);
     if (vocalCueMap) {
       add(parts, "Performer / vocal cue map", vocalCueMap);
       if (selectedPerformerSubjectsForSegment(segment).length >= 2) {
-        parts.push("Multi-performer rule: use exact subject labels such as <Subject 1> (S1), <Subject 2> (S2), and <Audio 1> in the shot descriptions. For each assigned cue, write that the assigned subject precisely lip-syncs to <Audio 1>, singing or speaking the cue inside <d>[English] cue.</d>. Do not make an unassigned performer sing or speak during another performer's cue; keep them silent, mouth closed, or naturally reacting.");
+        parts.push("Multi-performer rule: use exact subject labels such as <Subject 1> (S1), <Subject 2> (S2), and <Audio 1> in the shot descriptions. For each vocal cue, write that the assigned subject precisely lip-syncs to <Audio 1>, singing or speaking the cue inside <d>[English] cue.</d>. Apply no performance direction to other performers during that cue.");
         parts.push("Shot wording rule: do not begin descriptions with 'The camera cuts to' or 'The camera...'. Start with the resulting framing or subject action, e.g. 'A panning medium shot shows...' or '<Subject 2> (S2) steps forward...'.");
       }
     }
@@ -40090,7 +40410,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     const cuts = Array.isArray(cutPlan.cut_times_seconds) ? cutPlan.cut_times_seconds : [];
     if (cutPlan.cue_driven) {
       const timingText = cuts.map((time) => miniMaxH3Timecode(time)).join(", ");
-      return `EDITING / CUT PLAN — MANDATORY: The timed singer/lyric cue map controls this exact ${exactDuration}-second segment. Create exactly ${cuts.length + 1} shot${cuts.length ? "s" : ""}${cuts.length ? ` with hard cuts at ${timingText}` : ""}. Each shot corresponds to one cue row in order: instrumental rows mean no visible lip-sync, and lyric rows mean only the assigned subject sings that cue. The builder will write [Shot 1] and every later [Shot N] At MM:SS.mmm label. Return only the creative description for each shot. Do not omit, merge, add, reorder, or shift cue shots.`;
+      return `EDITING / CUT PLAN — MANDATORY: The timed singer/lyric cue map controls this exact ${exactDuration}-second segment. Create exactly ${cuts.length + 1} shot${cuts.length ? "s" : ""}${cuts.length ? ` with hard cuts at ${timingText}` : ""}. Each shot corresponds to one cue row in order: rows without assigned words use only their visual action and camera direction, while lyric rows use the assigned subject and exact cue. The builder will write [Shot 1] and every later [Shot N] At MM:SS.mmm label. Return only the creative description for each shot. Do not omit, merge, add, reorder, or shift cue shots.`;
     }
     if (!cuts.length) {
       return `EDITING / CUT PLAN — MANDATORY: Use one smooth, continuous, uninterrupted shot for the full ${exactDuration}-second segment. Output only [Shot 1]. Use no additional shot label, hard cut, angle reset, montage, dissolve, scene change, or transition. Camera and character movement may develop inside the same continuous take.`;
@@ -40232,8 +40552,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     if (cue) {
       const subject = performers.find((item) => String(item.id) === String(cue.singer_id)) || { id: cue.singer_id, name: cue.singer_name };
       const performer = miniMaxH3PerformerLabel(subject, labelMap);
-      const lyric = miniMaxH3CapitalizeCueText(miniMaxH3PunctuatedCueText(cue.text));
-      return normalizeMiniMaxH3ShotDescription(`A clear medium close-up shows only ${performer} ${environment}, with the face and mouth unobstructed. ${performer} precisely lip-syncs to <Audio 1>, <d>[English] ${lyric}</d>, while no other visible performer sings or lip-syncs.`);
+      return normalizeMiniMaxH3ShotDescription(`A clear medium close-up shows only ${performer} ${environment}, with the face and mouth unobstructed while the camera stages the assigned performance moment. Other visible performers remain silent and naturally reactive.`);
     }
     const subject = performers[0] ? miniMaxH3PerformerLabel(performers[0], labelMap) : "the mapped performer";
     return normalizeMiniMaxH3ShotDescription(`A cinematic shot shows ${subject} ${environment}, preserving identity, wardrobe, lighting, and location continuity while the camera stages a clear music-video performance moment.`);
@@ -40360,7 +40679,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       return normalizeMiniMaxH3ShotDescription(description);
     });
     const requiredExtras = miniMaxH3CombinedSubjectPlan(segment, mode).subjects.filter((item) => item.kind === "extra");
-    const normalizedDescriptions = descriptions.map((description) => {
+    const normalizedDescriptions = descriptions.map((description, index) => {
       let clean = description;
       for (const extra of requiredExtras) {
         clean = clean.replace(new RegExp(`${escapeRegExp(extra.label)}\\s*\\(S\\d+\\)`, "gi"), extra.label);
@@ -40417,8 +40736,21 @@ Chrome vault corridor = Sealed industrial passage...</pre>
   }
 
   function miniMaxH3SentenceFragmentAfterCut(text) {
+    let clean = miniMaxH3StripLeadingCutDirective(text);
+    clean = clean.replace(/^(?:a|an|the)\s+/i, (match) => match.toLowerCase());
+    return clean;
+  }
+
+  function miniMaxH3StripLeadingCutDirective(text) {
     let clean = normalizeMiniMaxH3ShotDescription(text);
-    clean = clean.replace(/^(?:cut\s+to\s+)?(?:a|an|the)\s+/i, (match) => match.toLowerCase());
+    let previous = "";
+    // The JSON task asks only for shot descriptions, but Storyboard/Gemma can
+    // still echo one or several transition directives. The Builder owns the
+    // official cut phrase and timestamp, so remove every echoed prefix first.
+    while (clean && clean !== previous) {
+      previous = clean;
+      clean = clean.replace(/^(?:(?:the\s+camera\s+)?cuts?\s+to|cut\s+to)\s*(?::|[-–—.]|\s)*/i, "").trim();
+    }
     return clean;
   }
 
@@ -40435,14 +40767,70 @@ Chrome vault corridor = Sealed industrial passage...</pre>
   }
 
   function miniMaxH3PostCutShotText(text) {
-    const clean = normalizeMiniMaxH3ShotDescription(text);
-    if (/^(?:the\s+)?camera\b/i.test(clean)) {
-      return miniMaxH3CleanPostCutGrammar(`the camera cuts. ${clean}`);
+    const clean = miniMaxH3StripLeadingCutDirective(text);
+    // LLM shot descriptions are complete clauses, not guaranteed noun phrases.
+    // A period is grammatical for both "The pursuit continues..." and
+    // "A lower angle follows..."; blindly inserting "cuts to" is not.
+    return miniMaxH3CleanPostCutGrammar(`the camera cuts. ${miniMaxH3CapitalizeCueText(clean)}`);
+  }
+
+  function enforceMiniMaxH3CueOnShotDescription(segment, description, shotIndex, mode = miniMaxH3ModeForSegment(segment)) {
+    let text = normalizeMiniMaxH3ShotDescription(description);
+    if (!isMiniMaxSingerAssignmentMode(segment) || String(segment?.lyric_performance_mode || "together") !== "cue_map") return text;
+    const cues = normalizeLyricCueMapForSegment(segment, undefined, { preserveBlank: true });
+    const cue = cues[shotIndex];
+    if (!cue) return text;
+    const performers = selectedPerformerSubjectsForSegment(segment);
+    const labelMap = miniMaxH3SubjectLabelMapForSegment(segment, mode);
+    const subject = performers.find((item) => String(item.id) === String(cue.singer_id))
+      || performers.find((item) => String(item.name || "").toLowerCase() === String(cue.singer_name || "").toLowerCase())
+      || performers[0]
+      || { id: cue.singer_id, name: cue.singer_name || "Singer" };
+    const performer = miniMaxH3PerformerLabel(subject, labelMap);
+    const vocalMarker = /<d>|<\/d>|\b(?:sings?|singing|sung|speaks?|speaking|says?|saying|performs?|performing|dialogue|lip[ -]?sync(?:s|ing|ed)?|lyrics?|vocals?|instrumental|no[- ]?vocal|mouth\s+(?:moves?|moving|shapes?|shaping|articulates?|articulating)|lips?\s+(?:moves?|moving|shapes?|shaping)|jaw\s+(?:moves?|moving|shapes?|shaping|articulates?|articulating))\b/i;
+    if (cue.type === "instrumental") {
+      const sentences = text.match(/[^.!?…]+[.!?…]+|[^.!?…]+$/g) || [];
+      let clean = sentences.filter((sentence) => !vocalMarker.test(sentence)).join(" ").replace(/\s+/g, " ").trim();
+      if (!clean) clean = miniMaxH3FallbackShotDescription(segment, shotIndex, mode);
+      return normalizeMiniMaxH3ShotDescription(clean);
     }
-    if (/^(?:a|an|the)\s+[\w-]+(?:\s+[\w-]+){0,8}\s+shot(?:\s+of\b[^.]{0,120})?\s+(?:shows|captures|reveals|frames|focuses|follows|tracks|pans|pushes|orbits|opens|begins)\b/i.test(clean)) {
-      return miniMaxH3CleanPostCutGrammar(`the camera cuts. ${clean}`);
+    // The application owns the exact lyric placement, but the LLM's shot
+    // sentence also contains valuable blocking, camera, and ensemble action.
+    // Do not delete a whole sentence based on a vocal word: quoted lyric
+    // punctuation can make a sentence splitter leave fragments such as
+    // `"; S2 plays bass...`. Remove only the duplicate lyric/tag/timing
+    // material, then append the one canonical cue below.
+    const cueText = miniMaxH3CapitalizeCueText(miniMaxH3PunctuatedCueText(cue.text));
+    // Remove a previously generated canonical contract before adding the
+    // authoritative one below. This keeps retries idempotent.
+    text = text.replace(/<Subject\s+\d+>[^.\n]*?is the only visible performer singing and lip-syncing[\s\S]*?every other visible performer remains silent\.?/gi, "");
+    const cueVariants = [String(cue.text || "").trim(), cueText.replace(/[.!?…]+$/, "").trim()]
+      .filter(Boolean)
+      .sort((left, right) => right.length - left.length);
+    for (const variant of cueVariants) {
+      const escapedCue = escapeRegExp(variant);
+      const timing = "(?:\\d+(?:\\.\\d+)?s?\\s*(?:to|[–—-])\\s*\\d+(?:\\.\\d+)?s?)";
+      const vocalVerb = "(?:lip[ -]?sync(?:s|ing|ed)?|sing(?:s|ing)?|perform(?:s|ing|ed)?|speak(?:s|ing)?)";
+      // Preserve the sentence and its timing, replacing only the repeated
+      // lyric wording. For example: `she lip-syncs only \"line\" from
+      // 0.940s–1.800s` becomes `she performs the assigned vocal cue from
+      // 0.940s–1.800s`.
+      text = text
+        .replace(new RegExp(`\\b${vocalVerb}\\s+(?:only\\s+)?[“"']\\s*${escapedCue}[.!?…]*\\s*[”"']\\s+from\\s+(${timing})`, "gi"), "performs the assigned vocal cue from $1")
+        .replace(new RegExp(`<d>\\s*(?:\\[[^\\]]+\\]\\s*)?${escapedCue}[.!?…]*\\s*<\\/d>`, "gi"), "the assigned vocal cue")
+        .replace(new RegExp(`[“"']\\s*${escapedCue}[.!?…]*\\s*[”"']`, "gi"), "the assigned vocal cue");
     }
-    return miniMaxH3CleanPostCutGrammar(`the camera cuts to ${miniMaxH3SentenceFragmentAfterCut(clean)}`);
+    let clean = text
+      .replace(/<d>[\s\S]*?<\/d>/gi, "the assigned vocal cue")
+      .replace(/\s+([,.;!?])/g, "$1")
+      .replace(/([.!?])\s*;+/g, "$1")
+      .replace(/\s{2,}/g, " ")
+      .replace(/\s+([.!?])\s*([.!?])/g, "$1")
+      .trim();
+    if (!clean) clean = miniMaxH3FallbackShotDescription(segment, shotIndex, mode);
+    clean = clean.replace(/[,;:]\s*([.!?…])/g, "$1").replace(/\s+,/g, ",");
+    const vocalContract = `${performer} is the only visible performer singing and lip-syncing <d>[English] ${cueText}</d> from <Audio 1>; every other visible performer remains silent.`;
+    return normalizeMiniMaxH3ShotDescription(`${clean.replace(/[.!?…]+$/g, "").trim()}. ${vocalContract}`);
   }
 
   function miniMaxH3OfficialShotBodyFromDescriptions(segment, descriptions = []) {
@@ -40452,7 +40840,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       throw new Error(`Cannot assemble MiniMax shots: expected ${shotPlan.length} description${shotPlan.length === 1 ? "" : "s"}, got ${descriptions.length}.`);
     }
     return shotPlan.map((shot, index) => {
-      const description = normalizeMiniMaxH3ShotDescription(descriptions[index]);
+      const description = enforceMiniMaxH3CueOnShotDescription(segment, descriptions[index], index);
       if (shot.number === 1) return `[Shot 1] ${description}`.trim();
       const postCutDescription = miniMaxH3PostCutShotText(description).replace(/^\s*([a-z])/, (_match, letter) => letter.toUpperCase());
       return `[Shot ${shot.number}] At ${shot.timecode}, ${postCutDescription}`.trim();
@@ -40760,21 +41148,10 @@ Chrome vault corridor = Sealed industrial passage...</pre>
   function miniMaxH3OfficialAudioDefinition(segment) {
     const settings = miniMaxH3SettingsForSegment(segment);
     if (settings.audio_mode === "built_in_audio") return "";
-    const visualOnly = segmentUsesNoLipSyncPerformance(segment);
-    const dialogueAssignments = visualOnly ? [] : miniMaxDialogueAssignmentsForSegment(segment);
-    const lyricText = dialogueAssignments.length
-      ? dialogueAssignments.map((cue) => cue.text).join(" ")
-      : isInstrumentalLyricText(segment?.lyric_text) ? "" : flattenLyricForPrompt(segment?.lyric_text);
-    const multiCueSingers = isMiniMaxSingerAssignmentMode(segment)
-      && String(segment?.lyric_performance_mode || "together") === "cue_map"
-      && selectedPerformerSubjectsForSegment(segment).length >= 2;
-    const performer = segment?.no_character_present || multiCueSingers ? "the target video" : "<Subject 1> (S1)";
-    const lyricClause = lyricText && !visualOnly
-      ? selectedPerformerSubjectsForSegment(segment).length >= 2
-        ? ` ${miniMaxH3VocalCueMapText(segment, miniMaxH3ModeForSegment(segment), { compact: true })}`
-        : ` The exact performed lyric/dialogue line is "${miniMaxH3PunctuatedCueText(lyricText)}"`
-      : "";
-    return `<Audio 1> is the complete synchronized song and vocal track for ${performer}, reused as the target video's complete final soundtrack and timing reference.${lyricClause}`;
+    // Keep the audio definition deliberately standalone.  Cue timing and
+    // singer assignments belong in the shot descriptions, never on the
+    // <Audio 1> definition line in subject_definitions.
+    return "<Audio 1> is the complete synchronized song and vocal track for the target video, reused as the target video's complete final soundtrack and timing reference.";
   }
 
   function miniMaxH3OfficialSummary(segment, mode, refs) {
@@ -40868,7 +41245,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     return `${prefix}integrated_multimodal_description:\n${creative}`;
   }
 
-  function assertValidMiniMaxH3FinalPrompt(prompt, segment, mode = miniMaxH3ModeForSegment(segment)) {
+  function assertValidMiniMaxH3FinalPrompt(prompt, segment, mode = miniMaxH3ModeForSegment(segment), options = {}) {
     const text = String(prompt || "").trim();
     const normalizedMode = normalizeMiniMaxH3Mode(mode);
     if (!text) throw new Error("The assembled MiniMax H3 prompt is empty.");
@@ -40879,6 +41256,49 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       error.promptLength = text.length;
       error.promptLimit = 7000;
       throw error;
+    }
+    if (isMiniMaxSingerAssignmentMode(segment) && String(segment?.lyric_performance_mode || "together") === "cue_map") {
+      const cueMap = normalizeLyricCueMapForSegment(segment, undefined, { preserveBlank: true });
+      const creativeHeader = ["text_to_video", "image_to_video"].includes(normalizedMode)
+        ? "integrated_multimodal_description:"
+        : "detailed_description:";
+      const creativeStart = text.indexOf(creativeHeader);
+      const soundscapeStart = text.indexOf("overall_soundscape:", creativeStart);
+      const cueCreativeText = creativeStart >= 0 && soundscapeStart > creativeStart
+        ? text.slice(creativeStart + creativeHeader.length, soundscapeStart).trim()
+        : "";
+      cueMap.forEach((cue, index) => {
+        const shotLabel = `[Shot ${index + 1}]`;
+        const shotStart = cueCreativeText.indexOf(shotLabel);
+        const nextShotStart = cueCreativeText.indexOf(`[Shot ${index + 2}]`, shotStart + shotLabel.length);
+        const shotText = shotStart >= 0
+          ? cueCreativeText.slice(shotStart, nextShotStart >= 0 ? nextShotStart : cueCreativeText.length)
+          : "";
+        const dialogueTags = shotText.match(/<d>[\s\S]*?<\/d>/gi) || [];
+        if (cue.type === "instrumental" && dialogueTags.length) {
+          throw new Error(`${shotLabel} is assigned as instrumental but contains sung dialogue.`);
+        }
+        if (cue.type === "vocal") {
+          const expectedTag = `<d>[English] ${miniMaxH3CapitalizeCueText(miniMaxH3PunctuatedCueText(cue.text))}</d>`;
+          const normalizeCueTag = (value) => String(value || "")
+            .replace(/\\</g, "<")
+            .replace(/\\>/g, ">")
+            .replace(/\\+/g, "")
+            .replace(/\s+/g, " ")
+            .trim()
+            .toLocaleLowerCase();
+          const actualTag = dialogueTags.length === 1 ? dialogueTags[0] : "";
+          if (dialogueTags.length !== 1 || normalizeCueTag(actualTag) !== normalizeCueTag(expectedTag)) {
+            const warning = `${shotLabel} lyric cue mismatch. Expected ${expectedTag}; found ${actualTag || "no <d> cue"}.`;
+            if (options.allowCueValidationWarnings) {
+              console.warn(`[VRGDG Music Builder] ${warning}`);
+              if (typeof options.onCueValidationWarning === "function") options.onCueValidationWarning(warning);
+            } else {
+              throw new Error(`${shotLabel} must contain exactly its assigned lyric cue: ${expectedTag}`);
+            }
+          }
+        }
+      });
     }
     if (!state.failOnInvalidPromptFormats) return text;
     const headers = ["text_to_video", "image_to_video"].includes(normalizedMode)
@@ -41077,7 +41497,9 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       parts.push("MANDATORY CAMERA RULE: use energetic, visibly active camera movement. Slow, gentle, subtle, restrained, locked-off, static, and hold camera language contradicts this setting and must not appear.");
     }
     if (characterMotionSpeed >= 4) {
-      parts.push("MANDATORY CHARACTER ACTION RULE: include at least one clear physical body action, gesture, step, or interaction with the set in addition to visible singing and lip sync. Facial expression, blinking, breathing, and mouth movement alone do not satisfy character motion, but do not omit or suppress the required lip sync.");
+      parts.push(cueShotContract
+        ? "MANDATORY CHARACTER ACTION RULE: include at least one clear physical body action, gesture, step, or interaction with the set. Lip sync occurs only inside assigned vocal cue shots; instrumental cue shots must remain non-vocal."
+        : "MANDATORY CHARACTER ACTION RULE: include at least one clear physical body action, gesture, step, or interaction with the set in addition to visible singing and lip sync. Facial expression, blinking, breathing, and mouth movement alone do not satisfy character motion, but do not omit or suppress the required lip sync.");
     }
     if (segment?.no_character_present) {
       parts.push(
@@ -41100,6 +41522,11 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         nativeAudio
           ? `Native audio assignment: MiniMax generates the voices and audio. Follow the mandatory speaker assignment and dialogue order exactly. Synchronize each assigned speaker’s lips, mouth shapes, jaw movement, facial muscles, and breathing precisely to that speaker’s generated line. Do not merge speakers, reorder cues, replace, alter, repeat, extend, improvise, omit, or add words. Use silence, breathing, facial reaction, physical action, and low ambience for all remaining time.`
           : `Audio 1 assignment: use as the exact voice, timing, and lip-sync reference. ${performerLabel} says the exact line “${lyricText}”. Synchronize lips, mouth shapes, jaw movement, facial muscles, and breathing precisely to that spoken line in Audio 1. Do not replace, alter, extend, or add words.`,
+      );
+    } else if (lyricText && cueShotContract) {
+      parts.push(
+        "Vocal performance: TIMED CUE MAP ONLY.",
+        "Audio 1 is the exact timing reference. For each vocal cue, the assigned performer uses only the exact words inside that cue and only during its stated time range. Use only visual action and camera direction for other cue shots. Never stretch, restart, anticipate, or repeat the full lyric across shots.",
       );
     } else if (lyricText) {
       parts.push(
@@ -41223,7 +41650,48 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     return miniMaxH3PromptVisionImages(segment, mode);
   }
 
+  async function ensureAutoTimedSingerCuesBeforePrompt(segment) {
+    if (!state.autoTimeSingerCuesBeforePrompt || !segment || segment.no_character_present) return;
+    if (segment.no_character_present || normalizeVideoType(segment.performance_mode || state.videoType) !== "singing") return;
+    const lyric = isInstrumentalLyricText(segment.lyric_text) ? "" : flattenLyricForPrompt(segment.lyric_text);
+    const performers = selectedPerformerSubjectsForSegment(segment);
+    const rawExisting = Array.isArray(segment.lyric_cue_map) ? segment.lyric_cue_map : [];
+    const existing = normalizeLyricCueMapForSegment(segment, undefined, { preserveBlank: true });
+    const timingCues = existing.length ? existing : rawExisting;
+    const existingTimingComplete = timingCues.length && timingCues.every((cue, index) => {
+      const start = Number(cue.start);
+      // The UI intentionally derives a final cue's end from the scene end when
+      // the user leaves that last End field blank. Treat that displayed timing
+      // as complete; never replace an already hand-authored cue map with a new
+      // transcription just because the final raw `end` is null.
+      const end = miniMaxEffectiveCueEnd(segment, timingCues, index, cue);
+      return Number.isFinite(start) && Number.isFinite(Number(end)) && Number(end) > start;
+    });
+    if (existingTimingComplete) return true;
+    if (!lyric) return false;
+    if (!performers.length) {
+      throw new Error(`${sceneDisplayName(segment, segmentIndexInfo(segment).index)}: auto-time-before-prompt needs a mapped singer.`);
+    }
+    segment.lyric_shot_word_timing_enabled = true;
+    segment.lyric_performance_mode = "cue_map";
+    if (!existing.some((cue) => cue.type !== "instrumental" && flattenLyricForPrompt(cue.text))) {
+      const performer = performers[0] || {};
+      segment.lyric_cue_map = [{
+        type: "vocal",
+        text: lyric,
+        action_note: "",
+        singer_id: performer.id || "",
+        singer_name: performer.name || "",
+        start: null,
+        end: null,
+      }];
+    }
+    const timed = await autoTimeMiniMaxSingerCuesForSegment(segment);
+    if (!timed) throw new Error(`${sceneDisplayName(segment, segmentIndexInfo(segment).index)}: Whisper timing did not complete; prompt generation was stopped.`);
+    return true;
+  }
   async function runMiniMaxH3PromptGeneration(segment, mode, options = {}) {
+    await ensureAutoTimedSingerCuesBeforePrompt(segment);
     const visionImages = miniMaxH3PromptVisionImagesForRunner(segment, mode);
     const visualOnly = segmentUsesNoLipSyncPerformance(segment);
     const promptLyricText = visualOnly || isInstrumentalLyricText(segment.lyric_text) ? "" : flattenLyricForPrompt(segment.lyric_text);
@@ -41232,8 +41700,25 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       : String(segment.lyric_singers || "").split(/[,;\n]+/))
       .map((value) => String(value || "").trim())
       .filter(Boolean);
+    const lyricCueMap = visualOnly ? [] : normalizeLyricCueMapForSegment(segment, undefined, { preserveBlank: true });
+    const rawExplicitCueMap = !visualOnly && String(segment?.lyric_performance_mode || "") === "cue_map" && Array.isArray(segment?.lyric_cue_map)
+      ? segment.lyric_cue_map
+      : [];
+    if (rawExplicitCueMap.length && !lyricCueMap.length) {
+      throw new Error(`${sceneDisplayName(segment, segmentIndexInfo(segment).index)}: the explicit singer cue map was dropped before LLM prompting. Generation was stopped instead of sending incorrect vocal instructions.`);
+    }
+    const effectiveSingerNames = promptSingerNames.length
+      ? promptSingerNames
+      : Array.from(new Set(lyricCueMap.map((cue) => String(cue.singer_name || "").trim()).filter(Boolean)));
+    const vocalCueContract = visualOnly ? "" : miniMaxH3VocalCueMapText(segment, mode, { compact: false });
+    const assignmentNotes = vocalCueContract
+      ? `AUTHORITATIVE PERFORMER / VOCAL CUE MAP — obey exactly; this is part of the user assignment, not optional scene flavor:\n${vocalCueContract}`
+      : "";
     const requestedMaxNewTokens = Number(options.maxNewTokens ?? 4000);
-    let targetLimit = 6300;
+    // Give the creative shot descriptions the full H3 limit on the first
+    // attempt. Starting at 6300 made Gemma over-compress rich shot prose into
+    // telegraphic summaries even when the final prompt could fit under 7000.
+    let targetLimit = 7000;
     let lastOversizeError = null;
     for (let attempt = 1; attempt <= 3; attempt += 1) {
       const characterBudget = miniMaxH3PromptCharacterBudget(segment, mode, targetLimit);
@@ -41254,7 +41739,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         repair_model_file: miniMaxTextGemmaModelSelect.value,
         mmproj_file: visionImages.length ? miniMaxMmprojSelect.value : "",
         t2i_prompt: miniMaxH3CreativePromptContextForSegment(segment, mode, contextOptions),
-        user_notes: String(options.userNotes || ""),
+        user_notes: [String(options.userNotes || "").trim(), assignmentNotes].filter(Boolean).join("\n\n"),
         subject_context: "",
         location_context: "",
         no_character_present: Boolean(segment.no_character_present),
@@ -41262,7 +41747,12 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         prompt_only_scene_inspiration: options.promptOnlySceneInspiration ?? miniMaxH3SceneImageIsPromptInspiration(segment),
         performance_mode: options.performanceMode || effectiveVideoPerformanceModeForSegment(segment),
         lyric_text: promptLyricText,
-        singers: promptSingerNames,
+        singers: effectiveSingerNames,
+        lyric_cue_map: lyricCueMap,
+        performer_assignment: {
+          singing: Array.from(new Set(effectiveSingerNames)),
+          cue_map: lyricCueMap,
+        },
         audio_mode: options.audioMode || miniMaxH3SettingsForSegment(segment).audio_mode,
         speaker_assignments: Array.isArray(options.speakerAssignments)
           ? options.speakerAssignments
@@ -41279,6 +41769,9 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         top_p: Number(options.topP ?? 0.92),
         max_new_tokens: Math.min(requestedMaxNewTokens, budgetMaxNewTokens),
       }, GEMMA_VIDEO_PROMPT_TIMEOUT_MS);
+      if (data.llm_request_audit_path) {
+        segment.minimax_h3_llm_request_audit_path = String(data.llm_request_audit_path);
+      }
       const generatedPrompt = String(data.prompt || "").trim();
       if (!generatedPrompt) {
         throw new Error(options.emptyPromptMessage || `The LLM returned an empty MiniMax ${miniMaxH3ModeLabel(mode)} prompt.`);
@@ -41459,9 +41952,11 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       updateMiniMaxPromptCharacterStatus(segment);
       render();
       await autoSaveSessionQuiet(`MiniMax ${modeLabel} prompt complete`);
-      progress.set(`MiniMax ${modeLabel} prompt ready.`, 100);
-      progress.close(900);
-      toast(`Created the MiniMax ${modeLabel} prompt with ${gemmaRunnerLabel({ vision: Boolean(visionImages.length) })}.`);
+      const auditPath = String(data.llm_request_audit_path || "").trim();
+      progress.set(`MiniMax ${modeLabel} prompt ready.${auditPath ? `\n\nExact LLM request and raw response:\n${auditPath}` : ""}`, 100);
+      progress.close(auditPath ? 5000 : 900);
+      if (auditPath) console.info("[VRGDG Music Builder] Exact MiniMax H3 LLM request audit:", auditPath);
+      toast(`Created the MiniMax ${modeLabel} prompt with ${gemmaRunnerLabel({ vision: Boolean(visionImages.length) })}.${auditPath ? `\nLLM request audit: ${auditPath}` : ""}`);
     } catch (error) {
       const debugPath = error?.gemmaDebugPath || await saveGemmaJunkDebug(error, { label: `MiniMax ${modeLabel} prompt`, segment });
       if (isRecoverableBuildGemmaError(error)) {
@@ -41733,6 +42228,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
   }
 
   async function generateI2VPromptForSegment(segment, progress = null, percent = 50, label = "Gemma I2V", options = {}) {
+    await ensureAutoTimedSingerCuesBeforePrompt(segment);
     const request = buildI2VPromptRequestForSegment(segment, options);
     progress?.set(request.useImageReference
       ? `${label}: creating ${request.modeLabel} prompt from reference image, concept, and motion notes...\n${gemmaRunnerLine({ vision: true })}`
@@ -42562,6 +43058,12 @@ Chrome vault corridor = Sealed industrial passage...</pre>
           prompt_summary: promptSummary,
           motion_summary: videoNotes,
           lyric_singers: lyricSingers,
+          lyric_cue_map: normalizeLyricCueMapForSegment(segment, undefined, { preserveBlank: true }),
+          timed_lyric_cue_contract: miniMaxH3VocalCueMapText(segment, miniMaxH3ModeForSegment(segment)),
+          performer_assignment: {
+            singing: lyricSingers,
+            cue_map: normalizeLyricCueMapForSegment(segment, undefined, { preserveBlank: true }),
+          },
           speaker_assignments: normalizeMiniMaxSpeakerAssignments(segment.minimax_speaker_assignments),
           lyric_no_lip_sync: Boolean(segmentUsesNoLipSyncPerformance(segment)),
           lyric_instrumental: isInstrumentalLyricText(lyric),
@@ -42769,6 +43271,12 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       const segments = allEditableSegments()
         .slice()
         .sort((a, b) => Number(a.start || 0) - Number(b.start || 0));
+      // Storyboard prompt/beat application is allowed to update visual fields,
+      // but it must never import lyric text from its older storyboard payload.
+      // Keep the live line-review text as the source of truth for this operation.
+      const lyricTextBySegmentId = new Map(
+        segments.map((segment) => [String(segment.id || ""), String(segment.lyric_text || "")]),
+      );
       let applied = 0;
       let storyChanged = false;
       let facialChanged = false;
@@ -42899,6 +43407,10 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         if (String(scene.shot_type || "").trim()) segment.shot_type = String(scene.shot_type || "").trim();
         if (String(scene.camera_motion || "").trim()) segment.camera_motion = String(scene.camera_motion || "").trim();
       }
+      for (const segment of segments) {
+        const savedLyricText = lyricTextBySegmentId.get(String(segment.id || ""));
+        if (savedLyricText !== undefined) segment.lyric_text = savedLyricText;
+      }
       if (updates.story_layer || updates.storyLayer) {
         state.builderStoryLayer = normalizeBuilderStoryLayer(updates.story_layer || updates.storyLayer);
         storyChanged = true;
@@ -42919,7 +43431,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       return segments.find((candidate) => candidate.id === scene.id)
         || segments.find((candidate, index) => Number(index + 1) === Number(scene.scene_number));
     };
-    const storyboardVideoExtraNotes = (scene = {}, storyboardPayload = {}) => {
+    const storyboardVideoExtraNotes = (scene = {}, storyboardPayload = {}, canonicalSegment = null) => {
       const selectedScene = Array.isArray(storyboardPayload?.scenes) && storyboardPayload.scenes.length ? storyboardPayload.scenes[0] : {};
       const fullyCustomShortFilm = normalizeMiniMaxShortFilmPlanningMode(storyboardPayload?.short_film_planning_mode) === "fully_custom";
       const storyLayer = selectedScene.story_layer || {};
@@ -42976,7 +43488,10 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       add(parts, "REQUIRED Storyboard video style", selectedScene.video_style);
       add(parts, "MANDATORY exact Storyboard video style verbiage — copy word-for-word", selectedScene.video_style_verbiage);
       add(parts, "MANDATORY exact temporal / world effect verbiage — copy word-for-word", selectedScene.temporal_world_effect_verbiage);
-      if (!ltxScene) add(parts, "MANDATORY Storyboard editing / cut plan", selectedScene.cut_plan?.instruction);
+      if (!ltxScene) {
+        const canonicalCutPlan = canonicalSegment ? miniMaxH3CutPlanForSegment(canonicalSegment) : null;
+        add(parts, "MANDATORY Storyboard editing / cut plan", canonicalCutPlan?.instruction || selectedScene.cut_plan?.instruction);
+      }
       const customMotionSummary = String(selectedScene.motion_summary || scene.motion_summary || scene.video_notes || "").trim();
       add(parts, "Storyboard motion/video summary", customMotionSummary);
       if (!customMotionSummary) add(parts, "Storyboard camera motion", selectedScene.camera_motion || scene.camera_motion);
@@ -43114,7 +43629,18 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         ...segment,
         lyric_text: String(scene.lyrics || scene.lyric_text || segment.lyric_text || "").trim(),
         lyric_section: String(scene.lyric_section || scene.section || scene.song_section || segment.lyric_section || "").trim(),
-        lyric_singers: Array.isArray(scene.lyric_singers) ? scene.lyric_singers : segment.lyric_singers,
+        lyric_singers: Array.isArray(segment.lyric_singers) && segment.lyric_singers.length
+          ? [...segment.lyric_singers]
+          : (Array.isArray(scene.lyric_singers) ? [...scene.lyric_singers] : []),
+        lyric_shot_word_timing_enabled: Array.isArray(segment.lyric_cue_map) && segment.lyric_cue_map.length
+          ? Boolean(segment.lyric_shot_word_timing_enabled)
+          : Boolean(scene.lyric_shot_word_timing_enabled ?? segment.lyric_shot_word_timing_enabled),
+        lyric_performance_mode: Array.isArray(segment.lyric_cue_map) && segment.lyric_cue_map.length
+          ? "cue_map"
+          : String(scene.lyric_performance_mode || segment.lyric_performance_mode || "together"),
+        lyric_cue_map: Array.isArray(segment.lyric_cue_map) && segment.lyric_cue_map.length
+          ? segment.lyric_cue_map.map((cue) => ({ ...cue }))
+          : (Array.isArray(scene.lyric_cue_map) ? scene.lyric_cue_map.map((cue) => ({ ...cue })) : []),
         minimax_speaker_assignments: normalizeMiniMaxSpeakerAssignments(scene.speaker_assignments || scene.minimax_speaker_assignments || segment.minimax_speaker_assignments),
         lyric_no_lip_sync: Boolean(scene.lyric_no_lip_sync || scene.no_lip_sync || segmentUsesNoLipSyncPerformance(segment)),
         no_character_present: Boolean(scene.no_character_present || scene.noCharacterPresent || segment.no_character_present),
@@ -43172,8 +43698,9 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     const createStoryboardVideoPromptViaBuilder = async (scene = {}, options = {}) => {
       const segment = findStoryboardSegment(scene);
       if (!segment) throw new Error(`Scene ${scene.scene_number || ""}: matching Video Builder scene was not found.`);
+      await ensureAutoTimedSingerCuesBeforePrompt(segment);
       const workingSegment = storyboardSceneCloneForI2V(segment, scene);
-      const extraUserNotes = storyboardVideoExtraNotes(scene, options.storyboardPayload || {});
+      const extraUserNotes = storyboardVideoExtraNotes(scene, options.storyboardPayload || {}, workingSegment);
       if (normalizeProjectVideoEngine(state.projectVideoEngine) === "minimax_h3") {
         const mode = miniMaxH3ModeForSegment(segment);
         const modeLabel = miniMaxH3ModeLabel(mode);
@@ -43581,6 +44108,10 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       onPrepareStoryContext: typeof options.onPrepareStoryContext === "function" ? options.onPrepareStoryContext : null,
       onPromptsExported: applyStoryboardPrompts,
       onCreateVideoPrompt: createStoryboardVideoPromptViaBuilder,
+      onBeforeCreateVideoPrompt: async (scene) => {
+        const segment = findStoryboardSegment(scene);
+        if (segment) await ensureAutoTimedSingerCuesBeforePrompt(segment);
+      },
       onApplyIdLoraDialoguePlan: applyIdLoraDialoguePlanFromStoryboard,
       onApplyMiniMaxDialoguePlan: applyMiniMaxDialoguePlanFromStoryboard,
     }, GEMMA_VIDEO_PROMPT_TIMEOUT_MS);
@@ -45292,7 +45823,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     const twoPass = Boolean(state.miniMaxH3TwoPassEnabled) && mode === "reference_to_video";
     const threePass = Boolean(state.miniMaxH3ThreePassEnabled) && mode === "reference_to_video";
     if ((twoPass || threePass) && builtInAudio) {
-      throw new Error(`MiniMax H3 ${threePass ? "3 Pass" : "2 Pass"} currently supports Input Audio only. Switch Audio Mode to Input Audio before rendering.`);
+      throw new Error(`MiniMax H3 ${threePass ? "2 Pass Advanced" : "2 Pass"} currently supports Input Audio only. Switch Audio Mode to Input Audio before rendering.`);
     }
     if (!projectFolder) throw new Error("Save or select a project folder before rendering MiniMax H3.");
     if (!Number.isFinite(timelineStart) || !Number.isFinite(timelineEnd) || sceneDuration <= 0) {
@@ -45313,7 +45844,10 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       ?? (segment?.minimax_h3_prompt || segment?.i2v_prompt || "")
     ).trim();
     if (!prompt) throw new Error(`${sceneDisplayName(segment, sceneIndex)} needs a MiniMax H3 prompt.`);
-    assertValidMiniMaxH3FinalPrompt(prompt, segment, mode);
+    assertValidMiniMaxH3FinalPrompt(prompt, segment, mode, {
+      allowCueValidationWarnings: true,
+      onCueValidationWarning: options.onCueValidationWarning,
+    });
 
     const sourceAudioPath = String(
       options.audioPath
@@ -45434,10 +45968,10 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     segment.video_status = "running";
     renderList();
     const activePanel = segment?.id === panelSegmentId;
-    const requestedTwoPassSteps = twoPass && activePanel
+    const requestedTwoPassSteps = (twoPass || threePass) && activePanel
       ? {
-        pass1: Math.max(1, Math.min(1000, Math.trunc(Number(twoPassControls[0].steps.value) || 20))),
-        pass2: Math.max(1, Math.min(1000, Math.trunc(Number(twoPassControls[1].steps.value) || 5))),
+        pass1: Math.max(1, Math.min(1000, Math.trunc(Number((threePass ? advancedTwoPassControls : twoPassControls)[0].steps.value) || 20))),
+        pass2: Math.max(1, Math.min(1000, Math.trunc(Number((threePass ? advancedTwoPassControls : twoPassControls)[1].steps.value) || 5))),
       }
       : null;
     progress?.set(`${batchLabel}Preparing exact MiniMax H3 scene timing and ${builtInAudio ? "native audio generation" : "input audio"}...`, pct(8));
@@ -45473,28 +46007,28 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         final_width: twoPass ? miniMaxSettings.two_pass_final_width : undefined,
         final_height: twoPass ? miniMaxSettings.two_pass_final_height : undefined,
         latent_upscale_scale: twoPass ? miniMaxSettings.two_pass_latent_upscale_scale : undefined,
-        latent_upscaler_name: twoPass ? miniMaxSettings.two_pass_latent_upscaler_name : undefined,
-        two_pass_use_te_speed: twoPass ? miniMaxSettings.two_pass_use_te_speed : undefined,
-        te_speed_processing_control: twoPass ? miniMaxSettings.two_pass_te_speed_processing_control : undefined,
-        te_speed_start_percent: twoPass ? miniMaxSettings.two_pass_te_speed_start_percent : undefined,
-        te_speed_end_percent: twoPass ? miniMaxSettings.two_pass_te_speed_end_percent : undefined,
-        te_speed_mcs: twoPass ? miniMaxSettings.two_pass_te_speed_mcs : undefined,
-        te_speed_cache_depth: twoPass ? miniMaxSettings.two_pass_te_speed_cache_depth : undefined,
-        te_speed_device: twoPass ? miniMaxSettings.two_pass_te_speed_device : undefined,
-        final_resize_method: twoPass ? miniMaxSettings.two_pass_final_resize_method : undefined,
-        output_crf: twoPass ? miniMaxSettings.two_pass_output_crf : undefined,
+        latent_upscaler_name: (twoPass || threePass) ? miniMaxSettings.two_pass_latent_upscaler_name : undefined,
+        two_pass_use_te_speed: (twoPass || threePass) ? miniMaxSettings.two_pass_use_te_speed : undefined,
+        te_speed_processing_control: (twoPass || threePass) ? miniMaxSettings.two_pass_te_speed_processing_control : undefined,
+        te_speed_start_percent: (twoPass || threePass) ? miniMaxSettings.two_pass_te_speed_start_percent : undefined,
+        te_speed_end_percent: (twoPass || threePass) ? miniMaxSettings.two_pass_te_speed_end_percent : undefined,
+        te_speed_mcs: (twoPass || threePass) ? miniMaxSettings.two_pass_te_speed_mcs : undefined,
+        te_speed_cache_depth: (twoPass || threePass) ? miniMaxSettings.two_pass_te_speed_cache_depth : undefined,
+        te_speed_device: (twoPass || threePass) ? miniMaxSettings.two_pass_te_speed_device : undefined,
+        final_resize_method: (twoPass || threePass) ? miniMaxSettings.two_pass_final_resize_method : undefined,
+        output_crf: (twoPass || threePass) ? miniMaxSettings.two_pass_output_crf : undefined,
         three_pass_lightx_lora_name: miniMaxSettings.three_pass_lightx_lora_name,
         three_pass_lightx_lora_strength: miniMaxSettings.three_pass_lightx_lora_strength,
-        pass1_steps: twoPass ? (requestedTwoPassSteps?.pass1 ?? miniMaxSettings.two_pass_pass1_steps) : miniMaxSettings.steps,
-        pass1_denoise: twoPass ? miniMaxSettings.two_pass_pass1_denoise : miniMaxSettings.denoise,
-        pass1_sampler_name: twoPass ? miniMaxSettings.two_pass_pass1_sampler : miniMaxSettings.sampler_name,
-        pass1_scheduler: twoPass ? miniMaxSettings.two_pass_pass1_scheduler : miniMaxSettings.scheduler,
-        pass1_seed: twoPass ? miniMaxSettings.two_pass_pass1_seed : miniMaxSettings.seed,
-        pass2_steps: twoPass ? (requestedTwoPassSteps?.pass2 ?? miniMaxSettings.two_pass_pass2_steps) : 4,
-        pass2_denoise: twoPass ? miniMaxSettings.two_pass_pass2_denoise : 0.2,
-        pass2_sampler_name: twoPass ? miniMaxSettings.two_pass_pass2_sampler : miniMaxSettings.sampler_name,
-        pass2_scheduler: twoPass ? miniMaxSettings.two_pass_pass2_scheduler : miniMaxSettings.scheduler,
-        pass2_seed: twoPass ? miniMaxSettings.two_pass_pass2_seed : miniMaxSettings.seed,
+        pass1_steps: twoPass ? (requestedTwoPassSteps?.pass1 ?? miniMaxSettings.two_pass_pass1_steps) : threePass ? (requestedTwoPassSteps?.pass1 ?? miniMaxSettings.advanced_two_pass_pass1_steps) : miniMaxSettings.steps,
+        pass1_denoise: twoPass ? miniMaxSettings.two_pass_pass1_denoise : threePass ? miniMaxSettings.advanced_two_pass_pass1_denoise : miniMaxSettings.denoise,
+        pass1_sampler_name: twoPass ? miniMaxSettings.two_pass_pass1_sampler : threePass ? miniMaxSettings.advanced_two_pass_pass1_sampler : miniMaxSettings.sampler_name,
+        pass1_scheduler: twoPass ? miniMaxSettings.two_pass_pass1_scheduler : threePass ? miniMaxSettings.advanced_two_pass_pass1_scheduler : miniMaxSettings.scheduler,
+        pass1_seed: twoPass ? miniMaxSettings.two_pass_pass1_seed : threePass ? miniMaxSettings.advanced_two_pass_pass1_seed : miniMaxSettings.seed,
+        pass2_steps: twoPass ? (requestedTwoPassSteps?.pass2 ?? miniMaxSettings.two_pass_pass2_steps) : threePass ? (requestedTwoPassSteps?.pass2 ?? miniMaxSettings.advanced_two_pass_pass2_steps) : 4,
+        pass2_denoise: twoPass ? miniMaxSettings.two_pass_pass2_denoise : threePass ? miniMaxSettings.advanced_two_pass_pass2_denoise : 0.2,
+        pass2_sampler_name: twoPass ? miniMaxSettings.two_pass_pass2_sampler : threePass ? miniMaxSettings.advanced_two_pass_pass2_sampler : miniMaxSettings.sampler_name,
+        pass2_scheduler: twoPass ? miniMaxSettings.two_pass_pass2_scheduler : threePass ? miniMaxSettings.advanced_two_pass_pass2_scheduler : miniMaxSettings.scheduler,
+        pass2_seed: twoPass ? miniMaxSettings.two_pass_pass2_seed : threePass ? miniMaxSettings.advanced_two_pass_pass2_seed : miniMaxSettings.seed,
         three_pass_pass1_megapixels: miniMaxSettings.three_pass_pass1_megapixels,
         three_pass_pass1_steps: miniMaxSettings.three_pass_pass1_steps,
         three_pass_pass1_denoise: miniMaxSettings.three_pass_pass1_denoise,
@@ -45516,6 +46050,26 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         three_pass_pass3_scheduler: miniMaxSettings.three_pass_pass3_scheduler,
         three_pass_pass3_seed: miniMaxSettings.three_pass_pass3_seed,
         three_pass_pass3_te_speed: miniMaxSettings.three_pass_pass3_te_speed,
+        advanced_pass1_megapixels: miniMaxSettings.advanced_two_pass_pass1_megapixels,
+        advanced_pass2_megapixels: miniMaxSettings.advanced_two_pass_pass2_megapixels,
+        advanced_vram_preset: miniMaxSettings.advanced_two_pass_vram_preset,
+        advanced_tile_size_mode: miniMaxSettings.advanced_two_pass_tile_size_mode,
+        advanced_tile_width: miniMaxSettings.advanced_two_pass_tile_width,
+        advanced_tile_height: miniMaxSettings.advanced_two_pass_tile_height,
+        advanced_grid_rows: miniMaxSettings.advanced_two_pass_grid_rows,
+        advanced_grid_cols: miniMaxSettings.advanced_two_pass_grid_cols,
+        advanced_chunk_length: miniMaxSettings.advanced_two_pass_chunk_length,
+        advanced_temporal_overlap: miniMaxSettings.advanced_two_pass_temporal_overlap,
+        advanced_anchor_strength: miniMaxSettings.advanced_two_pass_anchor_strength,
+        advanced_spatial_w_overlap: miniMaxSettings.advanced_two_pass_spatial_w_overlap,
+        advanced_spatial_h_overlap: miniMaxSettings.advanced_two_pass_spatial_h_overlap,
+        advanced_fade_width: miniMaxSettings.advanced_two_pass_fade_width,
+        advanced_fade_height: miniMaxSettings.advanced_two_pass_fade_height,
+        advanced_min_tile_size: miniMaxSettings.advanced_two_pass_min_tile_size,
+        advanced_overlap_mode: miniMaxSettings.advanced_two_pass_overlap_mode,
+        advanced_overlap_blend: miniMaxSettings.advanced_two_pass_overlap_blend,
+        advanced_upscaler_device: miniMaxSettings.advanced_two_pass_upscaler_device,
+        advanced_upscaler_precision: miniMaxSettings.advanced_two_pass_upscaler_precision,
         easy_cache_bypass: miniMaxSettings.easy_cache_bypass,
         easy_cache_reuse_threshold: miniMaxSettings.easy_cache_reuse_threshold,
         easy_cache_start_percent: miniMaxSettings.easy_cache_start_percent,
@@ -45527,7 +46081,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         use_loras: miniMaxSettings.use_loras,
         lora_count: miniMaxSettings.lora_count,
         loras: miniMaxSettings.loras,
-        use_turbo_lora: (twoPass || threePass) ? false : miniMaxSettings.use_turbo_lora,
+        use_turbo_lora: miniMaxSettings.use_turbo_lora,
         turbo_lora_name: miniMaxSettings.turbo_lora_name,
         turbo_lora_strength: miniMaxSettings.turbo_lora_strength,
         image_paths: imagePaths,
@@ -45540,7 +46094,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       const renderStartedAt = Date.now() / 1000 - 2;
       const built = await postJson(
         threePass
-          ? "/vrgdg/workflow_runner/build_minimax_h3_3pass_prompt"
+          ? "/vrgdg/workflow_runner/build_minimax_h3_advanced_2pass_prompt"
           : twoPass
             ? "/vrgdg/workflow_runner/build_minimax_h3_2pass_prompt"
           : "/vrgdg/workflow_runner/build_minimax_h3_prompt",
@@ -45552,18 +46106,24 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       const builtLoraSettings = built?.lora_settings || {};
       const builtTurboSettings = built?.turbo_settings || {};
       const builtAdvancedSettings = built?.advanced_settings || {};
-      const exactTwoPassSteps = twoPass
+      const builtAdvancedResolution = built?.advanced_two_pass || {};
+      const debugWorkflowPath = String(built?.debug_workflow_path || "").trim();
+      const exactTwoPassSteps = (twoPass || threePass)
         ? {
           pass1: Number(built?.prompt?.["124"]?.inputs?.steps),
           pass2: Number(built?.prompt?.["190"]?.inputs?.value),
         }
         : null;
-      if (twoPass && (!Number.isInteger(exactTwoPassSteps.pass1) || !Number.isInteger(exactTwoPassSteps.pass2))) {
+      if ((twoPass || threePass) && (!Number.isInteger(exactTwoPassSteps.pass1) || !Number.isInteger(exactTwoPassSteps.pass2))) {
         throw new Error("The built MiniMax H3 two-pass prompt is missing its exact sampler step values.");
       }
-      const exactTwoPassStepsLine = twoPass
-        ? `\nRequested panel steps: Pass 1 = ${requestedTwoPassSteps?.pass1 ?? miniMaxSettings.two_pass_pass1_steps}; Pass 2 = ${requestedTwoPassSteps?.pass2 ?? miniMaxSettings.two_pass_pass2_steps}`
+      const exactTwoPassStepsLine = (twoPass || threePass)
+        ? `\nRequested panel steps: Pass 1 = ${requestedTwoPassSteps?.pass1 ?? (threePass ? miniMaxSettings.advanced_two_pass_pass1_steps : miniMaxSettings.two_pass_pass1_steps)}; Pass 2 = ${requestedTwoPassSteps?.pass2 ?? (threePass ? miniMaxSettings.advanced_two_pass_pass2_steps : miniMaxSettings.two_pass_pass2_steps)}`
           + `\nExact built-prompt sampler steps: Pass 1 = ${exactTwoPassSteps.pass1}; Pass 2 = ${exactTwoPassSteps.pass2}`
+        : "";
+      const exactAdvancedResolutionLine = threePass
+        ? `\nBuilt Pass 1 target: ${builtAdvancedResolution.pass1_width || "?"}×${builtAdvancedResolution.pass1_height || "?"} (${builtAdvancedResolution.pass1_megapixels ?? "?"} MP); Pass 2 target: ${builtAdvancedResolution.pass2_width || "?"}×${builtAdvancedResolution.pass2_height || "?"} (${builtAdvancedResolution.pass2_megapixels ?? "?"} MP)`
+          + (debugWorkflowPath ? `\nAPI workflow snapshot: ${debugWorkflowPath}` : "")
         : "";
       const exactModelChainLoras = (modelRef) => {
         const loras = [];
@@ -45587,7 +46147,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         }
         return loras.reverse();
       };
-      const exactTwoPassLoras = twoPass
+      const exactTwoPassLoras = (twoPass || threePass)
         ? {
           pass1: exactModelChainLoras(built?.prompt?.["124"]?.inputs?.model),
           pass2: exactModelChainLoras(built?.prompt?.["192"]?.inputs?.model),
@@ -45596,10 +46156,10 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       const formatExactLoras = (loras) => loras.length
         ? loras.map((item) => `${item.name} @ ${Number.isFinite(item.strength) ? item.strength : "unknown strength"} [node ${item.nodeId}]`).join(" → ")
         : "none";
-      const exactTwoPassLorasLine = twoPass
+      const exactTwoPassLorasLine = (twoPass || threePass)
         ? `\nExact built-prompt LoRAs:\nPass 1: ${formatExactLoras(exactTwoPassLoras.pass1)}\nPass 2: ${formatExactLoras(exactTwoPassLoras.pass2)}`
         : "";
-      const loraLine = twoPass
+      const loraLine = (twoPass || threePass)
         ? exactTwoPassLorasLine
         : builtLoraSettings.enabled
           ? `\nLoRAs: ${Number(builtLoraSettings.count || 0)} — ${(builtLoraSettings.loras || []).map((item) => `${item.name} @ ${item.strength}`).join(", ")}`
@@ -45619,10 +46179,10 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       }
 
       progress?.set(
-        `${batchLabel}${threePass ? "Queueing MiniMax H3 3 Pass (Stage 1 → Stage 2 → Stage 3)..." : twoPass ? "Queueing MiniMax H3 2 Pass (Stage 1 → Stage 2)..." : "Queueing MiniMax H3..."}\n`
+        `${batchLabel}${threePass ? "Queueing MiniMax H3 2 Pass Advanced (Base → MMH3 tiled upscale)..." : twoPass ? "Queueing MiniMax H3 2 Pass (Stage 1 → Stage 2)..." : "Queueing MiniMax H3..."}\n`
         + `Timeline: ${sceneDuration.toFixed(3)}s\n`
         + `H3 render: ${Number(timing.h3_frame_count || 0)} frames`
-        + (threePass ? "\nStage 1 and Stage 2 are saved as backups; Stage 3 will be used for stitching." : twoPass ? "\nPass 1 is learned-latent upscaled and refined by pass 2; the final pass-2 video will be used for stitching." : "")
+        + (threePass ? "\nPass 1 is saved as a backup; the MMH3 tiled/chunked Pass 2 video will be used for stitching." : twoPass ? "\nPass 1 is learned-latent upscaled and refined by pass 2; the final pass-2 video will be used for stitching." : "")
         + exactTwoPassStepsLine
         + loraLine
         + turboLine
@@ -45644,7 +46204,6 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         }, 15000).catch(() => ({}));
         const paths = [
           ["stage1", stages.stage1_path],
-          ["stage2", stages.stage2_path],
         ].filter(([, path]) => Boolean(path));
         if (!paths.length) return;
         liveStageBackupCopying = true;
@@ -45673,7 +46232,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         liveStageBackupCopying = false;
         if (!changed) return;
         segment.minimax_h3_stage1_path = segment.minimax_h3_stage1_backup_path || segment.minimax_h3_stage1_path || "";
-        segment.minimax_h3_stage2_path = segment.minimax_h3_stage2_backup_path || segment.minimax_h3_stage2_path || "";
+        segment.minimax_h3_stage2_path = segment.minimax_h3_stage2_path || "";
         const previewStage = paths.reduce((highest, [stage]) => {
           const value = Number(String(stage || "").replace("stage", ""));
           return Number.isFinite(value) ? Math.max(highest, value) : highest;
@@ -45694,17 +46253,17 @@ Chrome vault corridor = Sealed industrial passage...</pre>
             syncPreview(segment);
           }
         }
-        liveStageBackupsRegistered = Boolean(stages.stage1_path && stages.stage2_path);
+        liveStageBackupsRegistered = Boolean(stages.stage1_path);
         segment.video_cache_bust = Date.now();
         renderList();
         render();
-        await autoSaveSessionQuiet("MiniMax H3 three-pass backup available");
+        await autoSaveSessionQuiet("MiniMax H3 2 Pass Advanced backup available");
       };
       const videos = await waitForVideos(
         promptId,
         (message) => {
           void registerLiveThreePassBackups();
-          progress?.set(`${batchLabel}${threePass ? "MiniMax H3 3 Pass (Stage 1 → Stage 2 → Stage 3)\n" : twoPass ? "MiniMax H3 2 Pass (Stage 1 → Stage 2)\n" : ""}${message}${exactTwoPassStepsLine}${exactTwoPassLorasLine}\nPrompt ID: ${promptId}`, pct(62));
+          progress?.set(`${batchLabel}${threePass ? "MiniMax H3 2 Pass Advanced (Base → MMH3 tiled upscale)\n" : twoPass ? "MiniMax H3 2 Pass (Stage 1 → Stage 2)\n" : ""}${message}${exactTwoPassStepsLine}${exactAdvancedResolutionLine}${exactTwoPassLorasLine}\nPrompt ID: ${promptId}`, pct(62));
         },
         () => state.batchCancelled,
         null,
@@ -45713,7 +46272,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
           timeoutMessage: () => sceneVideoTimeoutMessage({
             promptId,
             sceneLabel: sceneDisplayName(segment, sceneIndex),
-            modeLabel: threePass ? "MiniMax H3 3 Pass (Stage 1 → Stage 2 → Stage 3)" : twoPass ? "MiniMax H3 2 Pass (Stage 1 → Stage 2)" : "MiniMax H3",
+            modeLabel: threePass ? "MiniMax H3 2 Pass Advanced (Base → MMH3 tiled upscale)" : twoPass ? "MiniMax H3 2 Pass (Stage 1 → Stage 2)" : "MiniMax H3",
             outputFolder: built.output_folder || "",
             projectFolder,
             finalFolder: collectedSceneVideoFolder(),
@@ -45729,7 +46288,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         ? videos.find((item) => videoName(item).includes("stage2")) || null
         : null;
       const video = threePass
-        ? videos.find((item) => videoName(item).includes("stage3")) || videos[videos.length - 1] || null
+        ? videos.find((item) => videoName(item).includes("stage2")) || videos[videos.length - 1] || null
         : twoPass
           ? videos.find((item) => videoName(item).includes("stage2")) || videos[videos.length - 1] || null
         : videos[videos.length - 1] || null;
@@ -45814,7 +46373,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         await autoSaveSessionQuiet(options.autoSaveReason || "MiniMax H3 scene video complete");
       }
       progress?.set(
-        `${batchLabel}${threePass ? "MiniMax H3 3 Pass complete — Stage 3 selected; Stage 1 and Stage 2 backups saved." : twoPass ? "MiniMax H3 learned-latent 2 Pass complete — final pass-2 video selected." : "MiniMax H3 scene ready."}\n${segment.video_path}\n`
+        `${batchLabel}${threePass ? "MiniMax H3 2 Pass Advanced complete — MMH3 Pass 2 selected; Pass 1 backup saved." : twoPass ? "MiniMax H3 learned-latent 2 Pass complete — final pass-2 video selected." : "MiniMax H3 scene ready."}${exactAdvancedResolutionLine}\n${segment.video_path}\n`
         + `Exact duration: ${finalDuration.toFixed(3)}s`,
         pct(100),
       );
@@ -46329,6 +46888,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     const skipFinalStitch = Boolean(options.skipFinalStitch || sceneScope === "selected");
     let renderLog = null;
     let currentSceneLog = null;
+    const renderWarnings = [];
     let previousRenderEndedMs = 0;
     if (!forceVideos) {
       try {
@@ -46452,6 +47012,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         upsertRenderLog(renderLog);
         const base = Math.floor((index / scenes.length) * 100);
         const span = Math.max(1, Math.floor(80 / scenes.length));
+        try {
         if (randomizeVideoSeed) {
           if (miniMaxProject) setMiniMaxH3SeedRandom(segment);
           else setVideoSeedRandom(segment);
@@ -46523,7 +47084,10 @@ Chrome vault corridor = Sealed industrial passage...</pre>
           existingVideoAction: forceVideos ? "backup" : "overwrite",
         };
         const renderedVideoPath = miniMaxProject
-          ? await renderMiniMaxSceneVideoWithProgress(segment, sceneIndex, progress, sharedRenderOptions)
+          ? await renderMiniMaxSceneVideoWithProgress(segment, sceneIndex, progress, {
+            ...sharedRenderOptions,
+            onCueValidationWarning: (warning) => renderWarnings.push(`${sceneLabel}: ${warning}`),
+          })
           : await renderSceneVideoWithProgress(segment, sceneIndex, progress, {
             ...sharedRenderOptions,
             audioPathOverride: skipFinalStitch || segmentTrack(segment) === "overlay" ? "" : preparedAudio.audioPath,
@@ -46569,8 +47133,36 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         currentSceneLog.total_ms = Math.max(0, sceneEndedMs - sceneStartedMs);
         await persistRenderLog(renderLog);
         currentSceneLog = null;
+        } catch (sceneError) {
+          const failedAt = Date.now();
+          const message = String(sceneError?.message || sceneError);
+          currentSceneLog.status = state.batchCancelled ? "canceled" : "failed";
+          currentSceneLog.ended_at = new Date(failedAt).toISOString();
+          currentSceneLog.total_ms = Math.max(0, failedAt - sceneStartedMs);
+          currentSceneLog.error = message;
+          renderLog.last_scene_error = message;
+          await persistRenderLog(renderLog);
+          progress.set(`${sceneLabel} failed — continuing with the remaining scenes.\n\n${message}`, Math.min(98, base + span));
+          console.error(`[VRGDG Music Builder] Render All scene failed; continuing: ${sceneLabel}`, sceneError);
+          currentSceneLog = null;
+          if (state.batchCancelled) throw sceneError;
+          continue;
+        }
       }
       assertBatchNotStopped();
+      const failedScenes = renderLog.scenes.filter((item) => item.status === "failed");
+      if (failedScenes.length) {
+        const completedAt = Date.now();
+        renderLog.status = "partial";
+        renderLog.ended_at = new Date(completedAt).toISOString();
+        renderLog.total_ms = Math.max(0, completedAt - logStartedMs);
+        renderLog.error = `${failedScenes.length} scene${failedScenes.length === 1 ? "" : "s"} failed; final stitch deferred so the batch remains resumable.`;
+        await persistRenderLog(renderLog);
+        await autoSaveSessionQuiet("render all partial batch complete");
+        progress.set(`Render All finished with ${failedScenes.length} failed scene${failedScenes.length === 1 ? "" : "s"}.\n\nThe remaining scenes were rendered. Final stitching was deferred; run Render All again after fixing the failed scene${failedScenes.length === 1 ? "" : "s"}.\n\nRender Log:\n${renderLog.report_text_path || "saved in the project session"}`, 100);
+        toast(`Render All finished with ${failedScenes.length} failed scene${failedScenes.length === 1 ? "" : "s"}. Remaining scenes continued rendering.`, true);
+        return;
+      }
       if (skipFinalStitch) {
         const completedAt = Date.now();
         renderLog.status = "complete";
@@ -46593,14 +47185,18 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       renderLog.stitch_ms = Math.max(0, stitchEndedMs - stitchStartedMs);
       renderLog.final_video_path = String(stitched.final_video_path || "");
       renderLog.status = "complete";
+      renderLog.warnings = renderWarnings;
       renderLog.ended_at = new Date(stitchEndedMs).toISOString();
       renderLog.total_ms = Math.max(0, stitchEndedMs - logStartedMs);
       await persistRenderLog(renderLog);
       await autoSaveSessionQuiet("render all final stitch complete");
       const summary = updateRenderLogSummary(renderLog);
-      progress.set(`Render All complete.\n\nFinal video:\n${stitched.final_video_path}\n\nScene clips:\n${stitched.video_folder}\n\nTotal time: ${renderLogDuration(summary.total_ms)}\nActive scene rendering: ${renderLogDuration(summary.render_ms)}\nFinal stitching: ${renderLogDuration(summary.stitch_ms)}\nRender Log:\n${renderLog.report_text_path || "saved in the project session"}`, 100);
+      const reviewNotice = renderWarnings.length
+        ? `\n\nReview after render — ${renderWarnings.length} non-blocking prompt issue${renderWarnings.length === 1 ? "" : "s"}:\n${renderWarnings.join("\n")}`
+        : "";
+      progress.set(`Render All complete.\n\nFinal video:\n${stitched.final_video_path}\n\nScene clips:\n${stitched.video_folder}\n\nTotal time: ${renderLogDuration(summary.total_ms)}\nActive scene rendering: ${renderLogDuration(summary.render_ms)}\nFinal stitching: ${renderLogDuration(summary.stitch_ms)}\nRender Log:\n${renderLog.report_text_path || "saved in the project session"}${reviewNotice}`, 100);
       progress.close(6500);
-      toast(`Render All complete:\n${stitched.final_video_path}`);
+      toast(`Render All complete:\n${stitched.final_video_path}${reviewNotice}`, Boolean(renderWarnings.length));
       if (!options.suppressFinalModal) showFinalVideoReadyModal(stitched.final_video_path);
       return stitched;
     } catch (error) {
@@ -54459,10 +55055,49 @@ Chrome vault corridor = Sealed industrial passage...</pre>
           const label = `Storyboard ${runnerName} All ${index + 1}/${targetScenes.length}: ${scene.label || `Scene ${scene.scene_number || index + 1}`}`;
           try {
             progress.set(`${label}\nCreating storyboard video prompt...`, base);
+            if (segment && state.autoTimeSingerCuesBeforePrompt && !segment.no_character_present
+              && normalizeVideoType(segment.performance_mode || state.videoType) === "singing") {
+              const timed = await ensureAutoTimedSingerCuesBeforePrompt(segment);
+              if (!timed) throw new Error(`${label}: Whisper timing did not complete; prompt generation was stopped.`);
+            }
+            const promptCueMap = segment && Array.isArray(segment.lyric_cue_map)
+              ? normalizeLyricCueMapForSegment(segment, undefined, { preserveBlank: true })
+              : [];
+            const timedCueContract = promptCueMap.length
+              ? [
+                "AUTHORITATIVE TIMED LYRIC CUES — use these exact intervals; do not repeat the complete lyric in every shot:",
+                ...promptCueMap.map((cue, cueIndex) => {
+                  const start = Number(cue?.start);
+                  const end = Number(cue?.end);
+                  const range = Number.isFinite(start) && Number.isFinite(end) && end > start
+                    ? `${start.toFixed(3)}s-${end.toFixed(3)}s`
+                    : `cue ${cueIndex + 1}`;
+                  return cue.type === "instrumental"
+                    ? `[${range}] Use only the assigned visual action and camera direction.`
+                    : `[${range}] ${cue.singer_name || "the assigned singer"} sings only: "${flattenLyricForPrompt(cue.text)}".`;
+                }),
+                "Each cue is authoritative. Assign only the words in that interval to that shot."
+              ].join("\n")
+              : "";
+            const sceneForPrompt = segment
+              ? {
+                ...scene,
+                lyrics: timedCueContract || scene.lyrics || scene.lyric_text || "",
+                timed_lyric_cue_contract: timedCueContract,
+                lyric_cue_map: promptCueMap,
+                performer_assignment: {
+                  singing: Array.from(new Set(promptCueMap.filter((cue) => cue.type !== "instrumental").map((cue) => cue.singer_name).filter(Boolean))),
+                  cue_map: promptCueMap,
+                },
+                lyric_shot_word_timing_enabled: Boolean(segment.lyric_shot_word_timing_enabled),
+                lyric_performance_mode: String(segment.lyric_performance_mode || ""),
+              }
+              : scene;
+            const promptStoryboardPayload = storyboardGptPayload(storyboardState, [sceneForPrompt]);
             const data = miniMaxProject
-              ? await createStoryboardVideoPromptViaBuilder(scene, {
+              ? await createStoryboardVideoPromptViaBuilder(sceneForPrompt, {
                 unloadAfter: index === targetScenes.length - 1,
-                storyboardPayload: storyboardGptPayload(storyboardState, [scene]),
+                storyboardPayload: promptStoryboardPayload,
                 progress,
                 progressPercent: base,
                 progressLabel: label,
@@ -54470,7 +55105,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
               : await postJson("/vrgdg/storyboard/gemma_video_prompt", {
                 ...(storyboardState.gemmaSettings || {}),
                 unload_after: index === targetScenes.length - 1,
-                storyboard_payload: storyboardGptPayload(storyboardState, [scene]),
+                storyboard_payload: promptStoryboardPayload,
                 max_new_tokens: 1400,
                 temperature: 0.35,
                 top_p: 0.90,
@@ -54480,7 +55115,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
               : segment ? finalizeVideoPromptDraftOnly(segment, data.prompt) : String(data.prompt || "").trim();
             const prompt = miniMaxProject
               ? finalizedPrompt
-              : applyWizardStoryboardTriggerPhrases(finalizedPrompt, scene);
+              : applyWizardStoryboardTriggerPhrases(finalizedPrompt, sceneForPrompt);
             if (!prompt) throw new Error(`${scene.label || `Scene ${index + 1}`}: ${runnerGenericName} returned an empty Storyboard video prompt.`);
             if (segment) {
               if (miniMaxProject) {
@@ -56627,7 +57262,9 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       picker.options = values;
       const current = String(picker.input.value || fallback || "").trim();
       const exactOrSameBase = values.find((item) => item === current || basenameOnly(item) === basenameOnly(current));
-      picker.input.value = exactOrSameBase || current || fallback;
+      // ComfyUI's newer io.Combo nodes validate against their live option list.
+      // Do not preserve a stale saved filename when it is no longer available.
+      picker.input.value = exactOrSameBase || values[0] || fallback;
     };
     setOptions(i2vUnetPicker, data.video_gguf_unets || data.unets, DEFAULT_I2V_UNET);
     const ltx25Selected = (state.i2vVideoSettings?.ltx_version || "2.5") !== "2.3";
@@ -56643,7 +57280,10 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     setMiniMaxOptions(miniMaxClipPicker, data.clip, DEFAULT_MINIMAX_H3_SETTINGS.clip_name);
     setMiniMaxOptions(miniMaxVideoVaePicker, data.vae, DEFAULT_MINIMAX_H3_SETTINGS.video_vae_name);
     setMiniMaxOptions(miniMaxAudioVaePicker, data.vae, DEFAULT_MINIMAX_H3_SETTINGS.audio_vae_name);
-    setMiniMaxOptions(miniMaxTwoPassLatentUpscalerPicker, data.upscale_models, DEFAULT_MINIMAX_H3_SETTINGS.two_pass_latent_upscaler_name);
+    const miniMaxLatentUpscalerChoices = (data.upscale_models || [])
+      .filter((item) => /minimax_h3_latent_upscaler_3d/i.test(String(item || "")));
+    setMiniMaxOptions(miniMaxTwoPassLatentUpscalerPicker, miniMaxLatentUpscalerChoices, DEFAULT_MINIMAX_H3_SETTINGS.two_pass_latent_upscaler_name);
+    setMiniMaxOptions(miniMaxAdvancedLatentUpscalerPicker, miniMaxLatentUpscalerChoices, DEFAULT_MINIMAX_H3_SETTINGS.two_pass_latent_upscaler_name);
     saveMiniMaxH3SettingsFromPanel();
     setOptions(fluxUnetPicker, data.unets, ["flux\\flux-2-klein-4b-fp8.safetensors", "flux-2-klein-4b-fp8.safetensors"]);
     setOptions(fluxClipPicker, data.clip, ["qwen_3_4b.safetensors", "flux\\qwen_3_4b.safetensors"]);
@@ -56771,7 +57411,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     saveMiniMaxH3SettingsFromPanel();
     autoSaveSessionQuiet("MiniMax H3 project settings").catch(() => null);
   };
-  for (const picker of [miniMaxDiffusionModelPicker, miniMaxClipPicker, miniMaxVideoVaePicker, miniMaxAudioVaePicker, miniMaxTwoPassLatentUpscalerPicker]) {
+  for (const picker of [miniMaxDiffusionModelPicker, miniMaxClipPicker, miniMaxVideoVaePicker, miniMaxAudioVaePicker, miniMaxTwoPassLatentUpscalerPicker, miniMaxAdvancedLatentUpscalerPicker]) {
     wireSearchablePicker(picker, saveMiniMaxH3SettingsFromPanel);
     picker.input.addEventListener("change", persistMiniMaxSettings);
   }
@@ -56817,6 +57457,25 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     miniMaxTwoPassFinalHeight,
     miniMaxTwoPassRefImageSize,
     miniMaxThreePassRefImageSize,
+    miniMaxAdvancedVramPreset,
+    miniMaxAdvancedTileSizeMode,
+    miniMaxAdvancedTileWidth,
+    miniMaxAdvancedTileHeight,
+    miniMaxAdvancedGridRows,
+    miniMaxAdvancedGridCols,
+    miniMaxAdvancedChunkLength,
+    miniMaxAdvancedTemporalOverlap,
+    miniMaxAdvancedAnchorStrength,
+    miniMaxAdvancedSpatialWOverlap,
+    miniMaxAdvancedSpatialHOverlap,
+    miniMaxAdvancedFadeWidth,
+    miniMaxAdvancedFadeHeight,
+    miniMaxAdvancedMinTileSize,
+    miniMaxAdvancedOverlapMode,
+    miniMaxAdvancedOverlapBlend,
+    miniMaxAdvancedUpscalerDevice,
+    miniMaxAdvancedUpscalerPrecision,
+    miniMaxAdvancedUseTeSpeed.input,
     miniMaxTwoPassLatentScale,
     miniMaxTwoPassUseTeSpeed.input,
     miniMaxTwoPassTeProcessingControl,
@@ -56834,18 +57493,66 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       pass.scheduler,
       pass.seed,
     ]),
-    ...threePassControls.flatMap((pass) => [
+    ...advancedTwoPassControls.flatMap((pass) => [
       pass.megapixels,
       pass.steps,
       pass.denoise,
       pass.sampler,
       pass.scheduler,
       pass.seed,
-      pass.teSpeed.input,
     ]),
   ]) {
     control.addEventListener("input", saveMiniMaxH3SettingsFromPanel);
     control.addEventListener("change", persistMiniMaxSettings);
+  }
+  miniMaxAdvancedVramPreset.addEventListener("change", () => {
+    const preset = {
+      "8gb": { tile: 352, chunk: 51 },
+      "12gb": { tile: 448, chunk: 68 },
+      "16gb": { tile: 544, chunk: 119 },
+      "24gb": { tile: 672, chunk: 153 },
+    }[miniMaxAdvancedVramPreset.value];
+    if (!preset) return;
+    miniMaxAdvancedTileSizeMode.value = "specific_size";
+    miniMaxAdvancedTileWidth.value = String(preset.tile);
+    miniMaxAdvancedTileHeight.value = String(preset.tile);
+    miniMaxAdvancedChunkLength.value = String(preset.chunk);
+    miniMaxAdvancedTemporalOverlap.value = "17";
+    miniMaxAdvancedSpatialWOverlap.value = "128";
+    miniMaxAdvancedSpatialHOverlap.value = "128";
+    miniMaxAdvancedFadeWidth.value = "32";
+    miniMaxAdvancedFadeHeight.value = "32";
+    miniMaxAdvancedMinTileSize.value = "256";
+    miniMaxAdvancedAnchorStrength.value = "0.999";
+    persistMiniMaxSettings();
+  });
+  for (const control of [
+    miniMaxAdvancedTileSizeMode,
+    miniMaxAdvancedTileWidth,
+    miniMaxAdvancedTileHeight,
+    miniMaxAdvancedGridRows,
+    miniMaxAdvancedGridCols,
+    miniMaxAdvancedChunkLength,
+    miniMaxAdvancedTemporalOverlap,
+    miniMaxAdvancedAnchorStrength,
+    miniMaxAdvancedSpatialWOverlap,
+    miniMaxAdvancedSpatialHOverlap,
+    miniMaxAdvancedFadeWidth,
+    miniMaxAdvancedFadeHeight,
+    miniMaxAdvancedMinTileSize,
+    miniMaxAdvancedOverlapMode,
+    miniMaxAdvancedOverlapBlend,
+    miniMaxAdvancedUpscalerDevice,
+    miniMaxAdvancedUpscalerPrecision,
+  ]) {
+    const markCustom = () => {
+      if (miniMaxAdvancedVramPreset.value === "custom") return;
+      miniMaxAdvancedVramPreset.value = "custom";
+      saveMiniMaxH3SettingsFromPanel();
+      autoSaveSessionQuiet("MiniMax H3 custom MMH3 settings").catch(() => null);
+    };
+    control.addEventListener("input", markCustom);
+    control.addEventListener("change", markCustom);
   }
   miniMaxUseLoras.input.addEventListener("change", () => {
     const segment = activeSegment();
@@ -56919,7 +57626,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     state.miniMaxH3ThreePassEnabled = true;
     setMiniMaxH3ModeForSegment(segment, "reference_to_video");
     syncMiniMaxH3Panel();
-    await autoSaveSessionQuiet("MiniMax H3 three-pass project mode");
+    await autoSaveSessionQuiet("MiniMax H3 2 Pass Advanced project mode");
   };
   miniMaxAudioMode.addEventListener("change", syncMiniMaxH3Panel);
   miniMaxContinuityMode.addEventListener("change", () => {

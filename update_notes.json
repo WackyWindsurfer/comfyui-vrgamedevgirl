@@ -3,6 +3,90 @@
   "product": "AI Video Builder",
   "releases": [
     {
+      "id": "2026-08-26-pr159-minimax-h3-advanced-upscale-and-video-compare",
+      "version": "2026.08.26-pr159-minimax-h3-advanced-upscale-and-video-compare",
+      "date": "2026-08-26",
+      "title": "MiniMax H3 Advanced 2-Pass Upscaling and Video Compare",
+      "commit": "8ec51ae",
+      "restart_required": true,
+      "guide_url": "https://github.com/vrgamegirl19/comfyui-vrgamedevgirl/pull/159",
+      "sections": [
+        {
+          "title": "Added",
+          "items": [
+            "Added MiniMax H3 2 Pass Advanced with MMH3 temporal chunking, spatial tiling, VRAM presets, independent Pass 1 and Pass 2 resolution controls, and advanced sampler settings.",
+            "Added exact generated API workflow snapshots so users can inspect the hidden graph, node connections, and resolved target dimensions for each advanced render.",
+            "Added direct before-and-after video upload, fullscreen comparison, zoom controls, and selected-file support to Video Compare."
+          ]
+        },
+        {
+          "title": "Improved",
+          "items": [
+            "Advanced resolution controls now offer 1K, 2K, and 4K long-edge presets while retaining custom megapixel control for experienced users.",
+            "Advanced MiniMax progress now reports the exact Pass 1 and Pass 2 dimensions sent to the workflow and the saved API snapshot path.",
+            "H3 latent upscaler model selection now resolves registered model directories reliably instead of depending on one custom-node folder."
+          ]
+        },
+        {
+          "title": "Fixed",
+          "items": [
+            "Fixed the advanced workflow resolution diagnostic that could fail with a set-object indexing error."
+          ]
+        },
+        {
+          "title": "Compatibility Notes",
+          "items": [
+            "Restart ComfyUI and hard-refresh the browser after updating so the revised Python workflow route and Builder JavaScript are loaded.",
+            "MiniMax H3 2 Pass Advanced requires the latest Comfyui-MMH3-UltimateUpscale custom nodes and the required H3 diffusion, VAE, Turbo LoRA, and latent upscaler model files.",
+            "The API workflow snapshot is written beside the scene output as scene_####_minimax_h3_advanced_2pass_api.json."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2026-08-23-pr158-reference-cues-and-project-save-reliability",
+      "version": "2026.08.23-pr158-reference-cues-and-project-save-reliability",
+      "date": "2026-08-23",
+      "title": "Complete reference saves, Singer cue timing, and safer MiniMax prompts",
+      "commit": "d095329",
+      "restart_required": true,
+      "guide_url": "https://github.com/vrgamegirl19/comfyui-vrgamedevgirl/pull/158",
+      "sections": [
+        {
+          "title": "Added",
+          "items": [
+            "Complete Reference Builder exports now save the canonical manifest, subject and location descriptions, reference-image mappings, scene-to-subject mappings, scene-to-location mappings, and non-empty project context files.",
+            "Autosave, Quick Save, Save Reference Builder, session restoration, and saved-project validation now share the same atomic save transaction and preserve the complete reference-builder state.",
+            "MiniMax H3 prompt requests now include the authoritative Singer assignment, lyric cue map, performer assignment, and an audit record containing the literal instruction sent to the LLM and its raw response."
+          ]
+        },
+        {
+          "title": "Improved",
+          "items": [
+            "Manual Singer cue maps are reused when complete; automatic timing no longer reruns Whisper for scenes that already have valid cue timing.",
+            "Cue-map prompting now preserves exact vocal-shot order, assigns the correct Singer, keeps instrumental shots non-vocal, and places canonical <d>[English] ...</d> cues in the final MiniMax H3 prompt.",
+            "MiniMax shot assembly now owns cut labels and timing, removes malformed repeated CUT TO wording, preserves detailed cinematic shot prose, and avoids duplicate lyric wording without deleting camera, blocking, wardrobe, environment, or performer action detail."
+          ]
+        },
+        {
+          "title": "Fixed",
+          "items": [
+            "Fixed saved projects missing subject_location/reference_descriptions.json, the subject_location export structure, flux_reference_builder state, reference mappings, and project context contents.",
+            "Fixed per-scene and batch MiniMax prompt generation paths so explicit Singer cue maps are not silently dropped before the LLM request.",
+            "Fixed lyric cleanup that could remove vocal verbs or split quoted lyric punctuation into broken shot fragments such as `\"; S2 ...`."
+          ]
+        },
+        {
+          "title": "Compatibility Notes",
+          "items": [
+            "Restart ComfyUI and hard-refresh the browser after updating so the revised Python save routes and Builder JavaScript are loaded.",
+            "Existing manually completed cue maps are preserved and reused. Whisper runs only when the scene does not already have complete valid cue timing.",
+            "The exact LLM instruction and raw response can be reviewed through the saved MiniMax request audit for each generated scene."
+          ]
+        }
+      ]
+    },
+    {
       "id": "2026-08-21-pr151-minimax-qwen-save-fixes",
       "version": "2026.08.21-pr151-minimax-qwen-save-fixes",
       "date": "2026-08-21",
