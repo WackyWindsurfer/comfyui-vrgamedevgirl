@@ -2751,6 +2751,12 @@ def _patch_minimax_h3_advanced_settings(prompt, payload):
 
 
 def _patch_minimax_h3_turbo(prompt, payload):
+    """Apply the legacy MiniMax Turbo LoRA through ComfyUI's native loader.
+
+    This setting predates the separate MiniMax-H3-Turbo custom-node project.
+    It is intentionally only a LoRA toggle; it must not require or inject an
+    external Turbo sampler/solver.
+    """
     enabled = _bool_payload(payload, "use_turbo_lora", False)
     if not enabled:
         return {
@@ -2760,23 +2766,6 @@ def _patch_minimax_h3_turbo(prompt, payload):
             "scheduler": "",
             "steps": 0,
         }
-
-    try:
-        import nodes as comfy_nodes
-        mappings = getattr(comfy_nodes, "NODE_CLASS_MAPPINGS", {}) or {}
-    except Exception as exc:
-        raise ValueError(
-            "MiniMax-H3 Turbo could not inspect ComfyUI custom-node registrations. "
-            "Restart ComfyUI after installing ComfyUI-MiniMax-H3-Turbo."
-        ) from exc
-    required_nodes = ("MiniMaxH3TurboLoRA", "MiniMaxH3TurboSampler")
-    missing_nodes = [name for name in required_nodes if name not in mappings]
-    if missing_nodes:
-        raise ValueError(
-            "MiniMax-H3 Turbo is enabled, but the required custom nodes are not registered: "
-            + ", ".join(missing_nodes)
-            + ". Install or update ComfyUI-MiniMax-H3-Turbo, then restart ComfyUI."
-        )
 
     lora_name = str(
         payload.get("turbo_lora_name") or "minimax_h3_turbo_4step_ema_ckpt850.safetensors"
@@ -2789,12 +2778,9 @@ def _patch_minimax_h3_turbo(prompt, payload):
             "Download the LoRA, refresh/restart ComfyUI, and select it in MiniMax Video Settings."
         )
     strength = _float_payload(payload, "turbo_lora_strength", 1.0, -10.0, 10.0)
-    turbo_steps = _int_payload(payload, "steps", 4, 1, 1000)
-
     scheduler_id = _api_node_id_by_class(prompt, "BasicScheduler", fallback="124")
     guider_id = _api_node_id_by_class(prompt, "BasicGuider", fallback="126")
     sampler_advanced_id = _api_node_id_by_class(prompt, "SamplerCustomAdvanced", fallback="125")
-    stock_sampler_id = _optional_api_node_id_by_class(prompt, "KSamplerSelect", fallback_ids=("123",))
     scheduler_inputs = prompt.get(scheduler_id, {}).get("inputs", {})
     model_ref = scheduler_inputs.get("model")
     if not isinstance(model_ref, list) or len(model_ref) != 2:
@@ -2803,37 +2789,25 @@ def _patch_minimax_h3_turbo(prompt, payload):
     turbo_lora_id = "9001"
     while turbo_lora_id in prompt:
         turbo_lora_id = str(int(turbo_lora_id) + 1)
-    turbo_sampler_id = str(int(turbo_lora_id) + 1)
-    while turbo_sampler_id in prompt:
-        turbo_sampler_id = str(int(turbo_sampler_id) + 1)
     prompt[turbo_lora_id] = {
-        "class_type": "VRGDG_MiniMaxH3TurboLoRACompat",
+        "class_type": "LoraLoaderModelOnly",
         "inputs": {
             "model": list(model_ref),
             "lora_name": lora_name,
-            "strength": strength,
+            "strength_model": strength,
         },
     }
-    prompt[turbo_sampler_id] = {
-        "class_type": "MiniMaxH3TurboSampler",
-        "inputs": {},
-    }
     _set_api_input(prompt, scheduler_id, "model", [turbo_lora_id, 0])
-    _set_api_input(prompt, scheduler_id, "scheduler", "simple")
-    _set_api_input(prompt, scheduler_id, "steps", turbo_steps)
     _set_api_input(prompt, guider_id, "model", [turbo_lora_id, 0])
-    _set_api_input(prompt, sampler_advanced_id, "sampler", [turbo_sampler_id, 0])
-    if stock_sampler_id:
-        prompt.pop(stock_sampler_id, None)
 
     return {
         "enabled": True,
         "lora_name": lora_name,
         "strength": strength,
-        "scheduler": "simple",
-        "steps": turbo_steps,
-        "lora_node": "VRGDG_MiniMaxH3TurboLoRACompat",
-        "sampler_node": "MiniMaxH3TurboSampler",
+        "scheduler": "",
+        "steps": 0,
+        "lora_node": "LoraLoaderModelOnly",
+        "sampler_node": "",
     }
 
 
@@ -3391,22 +3365,22 @@ def _build_minimax_h3_advanced_2pass_api_prompt(payload):
     if pass2_megapixels < pass1_megapixels:
         raise ValueError("2 Pass Advanced Pass 2 resolution must be at least Pass 1 resolution.")
 
-    tile_size_mode = str(payload.get("advanced_tile_size_mode") or "specific_size").strip().lower()
+    tile_size_mode = str(payload.get("advanced_tile_size_mode") or "rows_cols").strip().lower()
     if tile_size_mode not in {"specific_size", "rows_cols"}:
         tile_size_mode = "specific_size"
-    tile_width = _int_payload(payload, "advanced_tile_width", 448, 32, 16384)
-    tile_height = _int_payload(payload, "advanced_tile_height", 448, 32, 16384)
-    grid_rows = _int_payload(payload, "advanced_grid_rows", 3, 1, 9)
-    grid_cols = _int_payload(payload, "advanced_grid_cols", 5, 1, 9)
-    chunk_length = _int_payload(payload, "advanced_chunk_length", 68, 17, 100000)
+    tile_width = _int_payload(payload, "advanced_tile_width", 512, 32, 16384)
+    tile_height = _int_payload(payload, "advanced_tile_height", 512, 32, 16384)
+    grid_rows = _int_payload(payload, "advanced_grid_rows", 2, 1, 9)
+    grid_cols = _int_payload(payload, "advanced_grid_cols", 2, 1, 9)
+    chunk_length = _int_payload(payload, "advanced_chunk_length", 85, 17, 100000)
     temporal_overlap = _int_payload(payload, "advanced_temporal_overlap", 17, 0, 100000)
     anchor_strength = _float_payload(payload, "advanced_anchor_strength", 0.999, 0.0, 1.0)
     spatial_w_overlap = _int_payload(payload, "advanced_spatial_w_overlap", 128, 0, 16384)
     spatial_h_overlap = _int_payload(payload, "advanced_spatial_h_overlap", 128, 0, 16384)
-    fade_width = _int_payload(payload, "advanced_fade_width", 32, 0, 16384)
-    fade_height = _int_payload(payload, "advanced_fade_height", 32, 0, 16384)
+    fade_width = _int_payload(payload, "advanced_fade_width", 64, 0, 16384)
+    fade_height = _int_payload(payload, "advanced_fade_height", 64, 0, 16384)
     min_tile_size = _int_payload(payload, "advanced_min_tile_size", 256, 0, 16384)
-    overlap_mode = str(payload.get("advanced_overlap_mode") or "earlier").strip().lower()
+    overlap_mode = str(payload.get("advanced_overlap_mode") or "later").strip().lower()
     overlap_blend = str(payload.get("advanced_overlap_blend") or "linear").strip().lower()
     if overlap_mode not in {"earlier", "later"}:
         overlap_mode = "earlier"
@@ -4714,12 +4688,13 @@ def _find_scene_video_output(payload):
                 folders.append(output_folder)
         except ValueError:
             pass
-    for name in os.listdir(project_folder):
-        path = os.path.abspath(os.path.join(project_folder, name))
-        if not os.path.isdir(path):
-            continue
-        if any(name == prefix.rstrip("_") or name.startswith(prefix) for prefix in prefixes):
-            folders.append(path)
+    if not bool(payload.get("strict_output_folder")):
+        for name in os.listdir(project_folder):
+            path = os.path.abspath(os.path.join(project_folder, name))
+            if not os.path.isdir(path):
+                continue
+            if any(name == prefix.rstrip("_") or name.startswith(prefix) for prefix in prefixes):
+                folders.append(path)
     folders = list(dict.fromkeys(folders))
 
     candidates = []

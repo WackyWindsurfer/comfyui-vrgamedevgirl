@@ -307,21 +307,21 @@ const DEFAULT_MINIMAX_H3_SETTINGS = {
   three_pass_pass3_seed: 69,
   three_pass_pass3_te_speed: false,
   advanced_two_pass_vram_preset: "12gb",
-  advanced_two_pass_defaults_version: 1,
-  advanced_two_pass_tile_size_mode: "specific_size",
-  advanced_two_pass_tile_width: 448,
-  advanced_two_pass_tile_height: 448,
+  advanced_two_pass_defaults_version: 2,
+  advanced_two_pass_tile_size_mode: "rows_cols",
+  advanced_two_pass_tile_width: 512,
+  advanced_two_pass_tile_height: 512,
   advanced_two_pass_grid_rows: 3,
   advanced_two_pass_grid_cols: 5,
-  advanced_two_pass_chunk_length: 68,
+  advanced_two_pass_chunk_length: 85,
   advanced_two_pass_temporal_overlap: 17,
   advanced_two_pass_anchor_strength: 0.999,
   advanced_two_pass_spatial_w_overlap: 128,
   advanced_two_pass_spatial_h_overlap: 128,
-  advanced_two_pass_fade_width: 32,
-  advanced_two_pass_fade_height: 32,
+  advanced_two_pass_fade_width: 64,
+  advanced_two_pass_fade_height: 64,
   advanced_two_pass_min_tile_size: 256,
-  advanced_two_pass_overlap_mode: "earlier",
+  advanced_two_pass_overlap_mode: "later",
   advanced_two_pass_overlap_blend: "linear",
   advanced_two_pass_upscaler_device: "cuda",
   advanced_two_pass_upscaler_precision: "bf16",
@@ -333,7 +333,7 @@ const DEFAULT_MINIMAX_H3_SETTINGS = {
   advanced_two_pass_pass1_scheduler: "beta",
   advanced_two_pass_pass1_seed: 69,
   advanced_two_pass_pass2_megapixels: 2,
-  advanced_two_pass_pass2_resolution_preset: "custom",
+  advanced_two_pass_pass2_resolution_preset: "2k",
   advanced_two_pass_pass2_steps: 1,
   advanced_two_pass_pass2_denoise: 0.2,
   advanced_two_pass_pass2_sampler: "sa_solver",
@@ -460,7 +460,7 @@ function normalizeMiniMaxH3VideoPurpose(value) {
 function cloneMiniMaxH3Settings(value = {}) {
   const source = value && typeof value === "object" ? value : {};
   const hasCurrentTwoPassDefaults = Number(source.two_pass_defaults_version || 0) >= 1;
-  const hasCurrentAdvancedTwoPassDefaults = Number(source.advanced_two_pass_defaults_version || 0) >= 1;
+  const hasCurrentAdvancedTwoPassDefaults = Number(source.advanced_two_pass_defaults_version || 0) >= 2;
   const sourceLoras = Array.isArray(source.loras)
     ? source.loras
     : Array.from({ length: 4 }, (_, index) => ({
@@ -572,10 +572,10 @@ function cloneMiniMaxH3Settings(value = {}) {
     advanced_two_pass_upscaler_precision: ["fp32", "fp16", "bf16"].includes(String(source.advanced_two_pass_upscaler_precision || "").toLowerCase())
       ? String(source.advanced_two_pass_upscaler_precision).toLowerCase()
       : DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_upscaler_precision,
-    advanced_two_pass_pass1_resolution_preset: ["custom", "1k", "2k", "4k"].includes(String(source.advanced_two_pass_pass1_resolution_preset || "").toLowerCase())
+    advanced_two_pass_pass1_resolution_preset: ["custom", "1k", "2k", "1440p", "4k"].includes(String(source.advanced_two_pass_pass1_resolution_preset || "").toLowerCase())
       ? String(source.advanced_two_pass_pass1_resolution_preset).toLowerCase()
       : DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_pass1_resolution_preset,
-    advanced_two_pass_pass2_resolution_preset: ["custom", "1k", "2k", "4k"].includes(String(source.advanced_two_pass_pass2_resolution_preset || "").toLowerCase())
+    advanced_two_pass_pass2_resolution_preset: ["custom", "1k", "2k", "1440p", "4k"].includes(String(source.advanced_two_pass_pass2_resolution_preset || "").toLowerCase())
       ? String(source.advanced_two_pass_pass2_resolution_preset).toLowerCase()
       : DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_pass2_resolution_preset,
     advanced_two_pass_defaults_version: DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_defaults_version,
@@ -641,6 +641,15 @@ const MINIMAX_H3_MODEL_DOWNLOADS = [
   { label: "Kijai MiniMax H3 LoRAs", url: "https://huggingface.co/Kijai/MiniMax-H3_comfy/tree/main/loras" },
   { label: "MMH3 Ultimate Upscale custom nodes", url: "https://github.com/bbaudio-2025/Comfyui-MMH3-UltimateUpscale" },
   { label: "MiniMax H3 latent upscaler models", url: "https://github.com/LBH-123-AI/Comfyui_Minimax_h3_latent_Upscaler" },
+];
+const VIDEO_BUILDER_CUSTOM_NODES = [
+  { id: "vrgdg", label: "VRGameDevGirl Video Builder", note: "The builder’s own custom-node pack. This is the pack currently providing this interface and its VRGDG nodes.", url: "https://github.com/vrgamegirl19/comfyui-vrgamedevgirl", current: true },
+  { id: "videohelpersuite", label: "ComfyUI-VideoHelperSuite", note: "Video loading, combining, and output nodes used by the builder workflows.", url: "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite" },
+  { id: "kjnodes", label: "ComfyUI-KJNodes", note: "KJ utility, video, model-loader, and optimization nodes used by LTX and MiniMax workflows.", url: "https://github.com/kijai/ComfyUI-KJNodes" },
+  { id: "gguf", label: "ComfyUI-GGUF", note: "GGUF diffusion and text-encoder loaders used by the LTX 2.3 and local LLM options.", url: "https://github.com/city96/ComfyUI-GGUF" },
+  { id: "ltxvideo", label: "ComfyUI-LTXVideo", note: "Official LTX-Video support, including the sampler wrappers used by LTX builder workflows.", url: "https://github.com/Lightricks/ComfyUI-LTXVideo" },
+  { id: "te_speed_minimax_h3", label: "TE-Speed-MiniMaxH3-OSS", note: "Optional MiniMax H3 acceleration node used by the TE-Speed setting in two-pass workflows.", url: "https://github.com/HELPMEEADICE/TE-Speed-MiniMaxH3-OSS" },
+  { id: "mmh3_ultimate_upscale", label: "Comfyui-MMH3-UltimateUpscale", note: "Optional MiniMax H3 advanced upscale node used by the advanced upscale/refinement path.", url: "https://github.com/bbaudio-2025/Comfyui-MMH3-UltimateUpscale" },
 ];
 const ZIMAGE_MODEL_DOWNLOADS = [
   { label: "Z-Image Turbo", url: "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors" },
@@ -1697,6 +1706,7 @@ function showModelDownloadModal() {
         { title: "MiniMax H3", note: "Required diffusion model, Qwen3-VL text encoder, video VAE, and audio VAE for MiniMax H3 rendering.", downloads: MINIMAX_H3_MODEL_DOWNLOADS },
       ],
     },
+    { id: "custom-nodes", label: "Custom Nodes", custom: true },
   ];
   const backdrop = document.createElement("div");
   backdrop.style.cssText = "position:fixed;inset:0;z-index:100006;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:28px;box-sizing:border-box;";
@@ -1776,7 +1786,122 @@ function showModelDownloadModal() {
     }
   };
 
+  const renderCustomNodes = async () => {
+    body.style.display = "flex";
+    body.style.flexDirection = "column";
+    body.style.gap = "14px";
+    body.replaceChildren();
+    const intro = document.createElement("div");
+    intro.textContent = "These are the external custom-node packs used by the Video Builder workflows. Open a repository for details, or install only the missing packs with the button below.";
+    intro.style.cssText = "font-size:14px;line-height:1.45;color:#cbd5e1;";
+    const actions = document.createElement("div");
+    actions.style.cssText = "display:flex;flex-wrap:wrap;gap:10px;";
+    const installAll = makeMiniButton("Install Missing Nodes");
+    installAll.style.cssText += ";font-size:15px;font-weight:900;padding:11px 15px;background:#15803d;border-color:#4ade80;color:#f0fdf4;";
+    const refresh = makeMiniButton("Refresh Status");
+    refresh.style.cssText += ";font-size:14px;font-weight:800;padding:11px 15px;";
+    actions.append(installAll, refresh);
+    const restartNote = document.createElement("div");
+    restartNote.textContent = "Installation runs through ComfyUI’s Python environment. Fully close and restart ComfyUI, then refresh your browser, before using newly installed nodes.";
+    restartNote.style.cssText = "padding:10px 12px;border:1px solid #854d0e;border-radius:7px;background:#422006;color:#fde68a;font-size:12px;line-height:1.4;";
+    const list = document.createElement("div");
+    list.style.cssText = "display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;";
+    body.append(intro, actions, restartNote, list);
+
+    const draw = (statuses = []) => {
+      const byId = new Map(statuses.map((item) => [item.id, item]));
+      list.replaceChildren();
+      for (const item of VIDEO_BUILDER_CUSTOM_NODES) {
+        const status = byId.get(item.id);
+        const card = document.createElement("div");
+        card.style.cssText = "display:flex;flex-direction:column;gap:10px;border:1px solid #334155;border-radius:9px;background:#111827;padding:15px;";
+        const heading = document.createElement("div");
+        heading.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:10px;";
+        const name = document.createElement("div");
+        name.textContent = item.label;
+        name.style.cssText = "font-size:17px;font-weight:900;color:#f8fafc;";
+        const badge = document.createElement("span");
+        const installed = item.current || status?.installed;
+        badge.textContent = installed ? "Installed" : "Missing";
+        badge.style.cssText = `font-size:11px;font-weight:900;padding:4px 7px;border-radius:999px;background:${installed ? "#14532d" : "#7f1d1d"};color:${installed ? "#bbf7d0" : "#fecaca"};`;
+        heading.append(name, badge);
+        const note = document.createElement("div");
+        note.textContent = item.note;
+        note.style.cssText = "font-size:13px;line-height:1.4;color:#cbd5e1;min-height:36px;";
+        const buttons = document.createElement("div");
+        buttons.style.cssText = "display:flex;flex-wrap:wrap;gap:8px;margin-top:auto;";
+        const repo = makeMiniButton("Open Repository");
+        repo.addEventListener("click", () => window.open(item.url, "_blank", "noopener,noreferrer"));
+        const install = makeMiniButton(item.current ? "Included" : (status?.installed ? "Reinstall Requirements" : "Install"));
+        install.disabled = Boolean(item.current);
+        install.style.background = installed ? "#334155" : "#1d4ed8";
+        install.style.borderColor = installed ? "#64748b" : "#60a5fa";
+        if (item.current) install.title = "This is the currently installed Video Builder pack.";
+        install.addEventListener("click", async () => {
+          install.disabled = true;
+          install.textContent = "Installing...";
+          try {
+            const result = await postJson("/vrgdg/video_builder/custom_nodes/install", { ids: [item.id] }, 1200000);
+            toast(`${item.label} installed. Restart ComfyUI before using it.`);
+            draw((await getJson("/vrgdg/video_builder/custom_nodes/status")).nodes || []);
+          } catch (error) {
+            toast(String(error?.message || error), true);
+          } finally {
+            install.disabled = false;
+          install.textContent = status?.installed ? "Reinstall Requirements" : "Install";
+          }
+        });
+        buttons.append(repo, install);
+        card.append(heading, note, buttons);
+        list.append(card);
+      }
+    };
+    const load = async () => {
+      refresh.disabled = true;
+      try {
+        const result = await getJson("/vrgdg/video_builder/custom_nodes/status");
+        if (result.custom_nodes_dir) {
+          intro.textContent = `Checking ComfyUI custom nodes folder: ${result.custom_nodes_dir}`;
+        }
+        draw(result.nodes || []);
+      } catch (error) {
+        draw([]);
+        toast(`Could not read custom-node status: ${String(error?.message || error)}`, true);
+      } finally {
+        refresh.disabled = false;
+      }
+    };
+    refresh.onclick = load;
+    installAll.onclick = async () => {
+      installAll.disabled = true;
+      installAll.textContent = "Installing Missing...";
+      try {
+        const current = await getJson("/vrgdg/video_builder/custom_nodes/status");
+        const missing = (current.nodes || []).filter((item) => !item.installed).map((item) => item.id);
+        if (!missing.length) {
+          toast("All Video Builder custom nodes are already installed.");
+        } else {
+          await postJson("/vrgdg/video_builder/custom_nodes/install", { ids: missing }, 3600000);
+          toast("Missing custom nodes installed. Restart ComfyUI before using them.");
+        }
+        await load();
+      } catch (error) {
+        toast(String(error?.message || error), true);
+      } finally {
+        installAll.disabled = false;
+        installAll.textContent = "Install Missing Nodes";
+      }
+    };
+    await load();
+  };
+
   const renderTab = (tab) => {
+    if (tab.custom) {
+      renderCustomNodes();
+      return;
+    }
+    body.style.display = "grid";
+    body.style.flexDirection = "";
     if (!tab.subTabs?.length) {
       renderGroups(tab.groups || []);
       return;
@@ -5921,8 +6046,8 @@ function openBuilder(node) {
   const miniMaxNoGgufNote = document.createElement("div");
   miniMaxNoGgufNote.textContent = "MiniMax H3 currently uses the standard diffusion-model loader. GGUF is not enabled yet.";
   miniMaxNoGgufNote.style.cssText = "font-size:11px;color:#fcd34d;line-height:1.4;";
-  const miniMaxUseTurboLora = makeCheckbox("Use MiniMax-H3 Turbo LoRA (4-step)", false);
-  miniMaxUseTurboLora.wrapper.title = "Conditionally injects MiniMaxH3TurboLoRA and MiniMaxH3TurboSampler into the hidden API workflow.";
+  const miniMaxUseTurboLora = makeCheckbox("Use legacy MiniMax-H3 Turbo LoRA", false);
+  miniMaxUseTurboLora.wrapper.title = "Applies the selected legacy Turbo LoRA through ComfyUI's built-in LoRA loader. It does not require a separate Turbo custom-node repository.";
   const miniMaxTurboLoraPicker = makeSearchableLoraPicker(DEFAULT_MINIMAX_H3_SETTINGS.turbo_lora_name);
   const miniMaxTurboLoraField = makeField("Turbo LoRA", miniMaxTurboLoraPicker.wrapper);
   const miniMaxTurboLoraStrength = makeInput(String(DEFAULT_MINIMAX_H3_SETTINGS.turbo_lora_strength), "number");
@@ -6068,15 +6193,16 @@ function openBuilder(node) {
   ];
   const advancedResolutionPresets = [
     { value: "custom", label: "Custom megapixels" },
-    { value: "1k", label: "1K (long edge)" },
-    { value: "2k", label: "2K (long edge)" },
-    { value: "4k", label: "4K (long edge)" },
+    { value: "1k", label: "H3 1K (1024×576)" },
+    { value: "2k", label: "H3 2K (1920×1088)" },
+    { value: "1440p", label: "1440p (2560×1440)" },
+    { value: "4k", label: "H3 4K (3840×2176)" },
   ];
   const advancedPresetMegapixels = (preset, aspectRatio) => {
     const match = String(aspectRatio || "16:9").match(/(\d+)\s*:\s*(\d+)/);
     const ratioWidth = Number(match?.[1] || 16);
     const ratioHeight = Number(match?.[2] || 9);
-    const longEdge = { "1k": 1024, "2k": 2048, "4k": 4096 }[String(preset || "").toLowerCase()];
+    const longEdge = { "1k": 1024, "2k": 1920, "1440p": 2560, "4k": 3840 }[String(preset || "").toLowerCase()];
     if (!longEdge) return null;
     const scale = longEdge / Math.max(ratioWidth, ratioHeight);
     const width = Math.round(ratioWidth * scale / 32) * 32;
@@ -6234,8 +6360,8 @@ function openBuilder(node) {
   miniMaxTwoPassSettings.style.display = "none";
   const miniMaxAdvancedVramPreset = makeSelect([
     { value: "8gb", label: "8 GB — 352px tiles / 51 frames" },
-    { value: "12gb", label: "12 GB — 448px tiles / 68 frames" },
-    { value: "16gb", label: "16 GB — 544px tiles / 119 frames" },
+    { value: "12gb", label: "12 GB — 512px tiles / 85 frames" },
+    { value: "16gb", label: "16 GB — 576px tiles / 119 frames" },
     { value: "24gb", label: "24 GB — 672px tiles / 153 frames" },
     { value: "custom", label: "Custom — keep advanced values" },
   ], DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_vram_preset);
@@ -8433,7 +8559,7 @@ function openBuilder(node) {
         ? "Normal MiniMax LoRAs are disabled while Turbo acceleration is active."
         : "Optional normal MiniMax LoRAs are OFF.";
     miniMaxTurboNote.textContent = settings.use_turbo_lora
-      ? "Turbo is ON. The hidden API workflow uses MiniMax-H3 Turbo LoRA plus the dedicated Turbo sampler and simple scheduler. Steps defaults to 4 when Turbo is switched on and remains editable down to 1 for experiments. Values below 4 are outside the Turbo LoRA's usual 4-step target. EasyCache bypass is enabled automatically; the advanced control remains editable for experiments. Normal settings are restored when Turbo is turned off."
+        ? "Turbo LoRA is ON. The selected LoRA is applied with ComfyUI's built-in LoRA loader. No separate Turbo custom-node repository is required."
       : settings.use_loras
         ? "Turbo is unavailable while normal MiniMax LoRAs are enabled."
         : "Turbo is OFF. The normal MiniMax sampler, scheduler, and step settings are used.";
@@ -43816,6 +43942,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     };
     storyboardPromptPipelineRunner = createStoryboardVideoPromptViaBuilder;
     ACTIVE_STORYBOARD_PROMPT_PIPELINE = createStoryboardVideoPromptViaBuilder;
+    if (options.registerPromptPipelineOnly) return;
     const applyIdLoraDialoguePlanFromStoryboard = async (updates = {}) => {
       const scenes = Array.isArray(updates.scenes)
         ? updates.scenes.filter((scene) => String(scene?.lyrics || scene?.story_beat || scene?.image_prompt || "").trim())
@@ -45430,6 +45557,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       segments: state.segments,
       global_audio_path: currentProjectAudioPath(),
       allow_missing_scene_audio: !!options.allowMissingSceneAudio,
+      srt_text_field: options.rtvLtx25 ? "lyric_text" : "label",
     }, 180000);
     if (data.srt_path) {
       state.srtPath = data.srt_path;
@@ -45442,6 +45570,17 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       srtPath: data.srt_path || state.srtPath || srtInput.value,
       usedSceneAudio: true,
     };
+  }
+
+  function ltx25RtvSceneOrdinal(segment) {
+    const ordered = (Array.isArray(state.segments) ? state.segments : [])
+      .map((item, index) => ({ item, index }))
+      .sort((left, right) => {
+        const delta = Number(left.item?.start || 0) - Number(right.item?.start || 0);
+        return Math.abs(delta) > 0.001 ? delta : left.index - right.index;
+      });
+    const ordinal = ordered.findIndex(({ item }) => item?.id === segment?.id);
+    return ordinal >= 0 ? ordinal + 1 : 1;
   }
 
   async function renderSceneVideoWithProgress(segment, sceneIndex, progress, options = {}) {
@@ -45477,6 +45616,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     // diffusion and CLIP node replacement. Native-audio T2V is not used by
     // the Video Builder, so all LTX versions follow the same audio path.
     const isLtx25NativeAudio = false;
+    const isLtx25Rtv = videoMode === "rtv" && videoSettingsForScene.ltx_version === "2.5";
     const idLoraContext = isIdLoraMode ? idLoraSceneContext(segment) : null;
     if (isIdLoraMode && idLoraContext?.dialogue) {
       segment.lyric_text = idLoraContext.dialogue;
@@ -45537,6 +45677,9 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       srtPath = singleSrt.srt_path || srtPath;
       promptNumberForScene = 1;
       audioModeForScene = segment.custom_audio_path ? "Custom scene audio trimmed for this scene" : "Global/project audio trimmed for this scene";
+    }
+    if (isLtx25Rtv && options.audioPathOverride) {
+      promptNumberForScene = ltx25RtvSceneOrdinal(segment);
     }
     if (!isLtx25NativeAudio && !String(audioPathForScene || "").trim()) {
       throw new Error(isIdLoraMode
@@ -45659,6 +45802,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         scene_number: slotNumber,
         prompt_number_one_based: promptNumberForScene,
         min_mtime: renderStartedAt,
+        strict_output_folder: isLtx25Rtv,
       }, 30000);
       return found.video_path || "";
     };
@@ -46951,9 +47095,12 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       await persistRenderLog(renderLog);
       progress.set(`Autosaving session/SRT before ${sceneScope === "selected" ? "Render Selected" : sceneScope === "from_selected" ? "Render From Selected" : "Render All"}...`, 3);
       await saveSessionForSceneVideo();
+      const ltx25RtvBatch = !miniMaxProject
+        && currentVideoMode() === "rtv"
+        && (state.i2vVideoSettings?.ltx_version || "2.5") === "2.5";
       const preparedAudio = miniMaxProject || skipFinalStitch
         ? { audioPath: "", srtPath: "" }
-        : await prepareSceneAudioMix(progress, "Preparing combined scene-audio track for LTX");
+        : await prepareSceneAudioMix(progress, "Preparing combined scene-audio track for LTX", { rtvLtx25: ltx25RtvBatch });
       const scenes = batchTargetItems(sceneScope)
         .filter(({ segment }) => forceVideos || !String(selectedSegmentVideoPath(segment) || "").trim());
       const requestedSceneCount = batchTargetItems(sceneScope).length;
@@ -57508,8 +57655,8 @@ Chrome vault corridor = Sealed industrial passage...</pre>
   miniMaxAdvancedVramPreset.addEventListener("change", () => {
     const preset = {
       "8gb": { tile: 352, chunk: 51 },
-      "12gb": { tile: 448, chunk: 68 },
-      "16gb": { tile: 544, chunk: 119 },
+      "12gb": { tile: 512, chunk: 85 },
+      "16gb": { tile: 576, chunk: 119 },
       "24gb": { tile: 672, chunk: 153 },
     }[miniMaxAdvancedVramPreset.value];
     if (!preset) return;
