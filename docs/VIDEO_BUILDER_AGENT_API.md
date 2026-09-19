@@ -282,10 +282,17 @@ and returns the raw JSON envelope verbatim — including `revision` and the
 4. On a `409 REVISION_CONFLICT`, re-read the current revision (from the error's
    `current.revision`) and retry the mutation.
 
-**Verified end-to-end** (`tests/test_mcp_e2e.py`, official MCP client over stdio
-against the live 8188 instance): server boots, lists 20 tools, and a full
-`create_project → add_scene → render_project (dry-run) → get_job → delete_project`
-round-trip succeeds; the test project is cleaned up.
+**Verified end-to-end** two ways:
+1. `tests/test_mcp_e2e.py` — official MCP client over stdio against the live
+   8188 instance: server boots, lists 20 tools, full
+   `create_project → add_scene → render_project (dry-run) → get_job →
+   delete_project` round-trip succeeds; test project cleaned up.
+2. **From Hermes Desktop** — the server is registered in Hermes
+   (`hermes mcp add vrgdg_video_builder`, 20/20 tools enabled). A fresh
+   `hermes` session natively called the tools: `list_projects` (ok, 0
+   projects) → `create_project("HERMES-E2E-DESKTOP")` (ok, id returned) →
+   `delete_project` (ok, cleaned up). Confirms the full agentic path:
+   Hermes → MCP (stdio) → REST API → ComfyUI instance.
 
 > **Note (environment):** a real GPU *completion* requires the diffusion/video
 > models + custom nodes to be installed on the target ComfyUI instance. The
