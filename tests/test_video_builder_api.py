@@ -280,5 +280,24 @@ class FindNewestVideoTests(unittest.TestCase):
         self.assertIsNone(api._find_newest_video(None))
 
 
+class ResolveSceneNumberTests(unittest.TestCase):
+    def test_by_ordinal_index(self):
+        session = {"segments": [{"id": "scene_001"}, {"id": "scene_002"}]}
+        self.assertEqual(api._resolve_scene_number(session, "scene_002"), 2)
+        self.assertEqual(api._resolve_scene_number(session, "scene_001"), 1)
+
+    def test_by_explicit_scene_number(self):
+        session = {"segments": [{"scene_number": 7, "id": "scene_007"}]}
+        self.assertEqual(api._resolve_scene_number(session, "scene_007"), 7)
+
+    def test_numeric_scene_id(self):
+        session = {"segments": [{}, {}, {}]}
+        self.assertEqual(api._resolve_scene_number(session, "3"), 3)
+
+    def test_fallback_to_one(self):
+        self.assertEqual(api._resolve_scene_number({"segments": []}, "nope"), 1)
+        self.assertEqual(api._resolve_scene_number(None, "nope"), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

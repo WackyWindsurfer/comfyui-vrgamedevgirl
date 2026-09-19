@@ -31,6 +31,7 @@ existing ``_ensure_music_builder_routes`` pattern.
 import copy
 import json
 import os
+import re
 import time
 import urllib.error
 import urllib.request
@@ -260,6 +261,34 @@ def _find_segment(session, scene_id):
     if 0 <= idx < len(segments):
         return segments[idx]
     return None
+
+
+def _resolve_scene_number(session, scene_id):
+    """Resolve the 1-based scene number for a scene id (exact, ordinal, or
+    ``scene_<NNN>``). Falls back to the segment's ``scene_number`` when present,
+    else its 1-based index in ``segments``. Returns 1 when unresolvable."""
+    # Public-id form: scene_002 -> 2 (the segment's stored id is often None, so
+    # the ordinal form is the reliable key).
+    if isinstance(scene_id, str):
+        m = re.match(r"^\s*scene_(\d+)\s*$", scene_id, re.IGNORECASE)
+        if m:
+            return int(m.group(1))
+        if scene_id.isdigit():
+            return int(scene_id)
+    segments = (session or {}).get("segments", []) or []
+    seg = _find_segment(session, scene_id) if session else None
+    if isinstance(seg, dict):
+        num = seg.get("scene_number")
+        if num not in (None, ""):
+            try:
+                return int(num)
+            except (TypeError, ValueError):
+                pass
+        if segments:
+            for i, s in enumerate(segments):
+                if s is seg:
+                    return i + 1
+    return 1
 
 
 def _scene_to_segment(scene, existing_segment=None, target=None):
@@ -676,8 +705,13 @@ def _run_generation_job(job_id, project_id, scene_id, builder, builder_payload,
             video_file = _find_newest_video(output_folder)
             if not video_file:
                 raise RuntimeError("no video file found in output folder %s" % output_folder)
+            # Resolve the scene number so the collected file lands in
+            # video_<NNNN>-audio.mp4 for the CORRECT scene (not always 0001).
+            _loaded = _load_builder_session(project_id)
+            scene_number = _resolve_scene_number(_loaded["session"], scene_id)
             res = _collect_scene_video({
                 "source_path": video_file, "project_folder": project_id,
+                "scene_number": scene_number,
             })
             saved_path = res.get("video_path")
             result["video"] = saved_path
@@ -724,7 +758,10 @@ def _run_render_job(job_id, project_id, dry_run, scene_ids, audio_path,
         segments = session.get("segments", []) or []
         if scene_ids:
             wanted = {str(s) for s in scene_ids}
-            segments = [s for s in segments if str(s.get("id")) in wanted]
+            # Match on the public scene id (segment["id"] when present, else
+            # scene_<NNN>); the stored id is often None, so use the index.
+            segments = [s for i, s in enumerate(segments)
+                       if scene_public_id(s, i) in wanted]
         scene_paths = [s.get("video_path") for s in segments if s.get("video_path")]
         if not scene_paths:
             raise ValueError("no rendered scene videos found for project %s" % project_id)
