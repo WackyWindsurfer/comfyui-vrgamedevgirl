@@ -68,9 +68,17 @@ class BuilderLlmRunnerTokenLimitTests(unittest.TestCase):
         )
 
     def test_lm_studio_receives_context_and_output_limits(self):
-        self.assertIn('f"{api_root}/api/v1/chat"', BUILDER_BACKEND)
+        # The native endpoint is built from a suffix so it works whether the
+        # base URL is bare (…/ → /api/v1/chat) or already ends in /v1
+        # (…/v1 → /api/chat). See native_suffix in _post_native.
+        self.assertIn('native_suffix = "/api/chat" if api_root.endswith("/v1") else "/api/v1/chat"', BUILDER_BACKEND)
+        self.assertIn('f"{api_root}{native_suffix}"', BUILDER_BACKEND)
         self.assertIn('"context_length": _lm_studio_context_limit(payload)', BUILDER_BACKEND)
-        self.assertIn('"max_output_tokens": _runner_output_token_limit(payload, max_new_tokens)', BUILDER_BACKEND)
+        # The output limit is computed once and reused for both the OpenAI and
+        # native bodies, so assert the limit helper is applied and the result
+        # reaches the native body.
+        self.assertIn("max_tokens = _runner_output_token_limit(payload, max_new_tokens)", BUILDER_BACKEND)
+        self.assertIn('"max_output_tokens": max_tokens', BUILDER_BACKEND)
         self.assertIn('"type": "image",', BUILDER_BACKEND)
 
     def test_configured_limits_override_old_task_defaults(self):

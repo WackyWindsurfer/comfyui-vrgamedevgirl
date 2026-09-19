@@ -69,6 +69,22 @@ def load_two_pass_builder():
             "H3FastVAEDecode": object(),
         },
         "_minimax_h3_output_location": lambda _folder, _scene: (_folder, "scene_0001"),
+        # VHS-absent in repo-only test runs, but the build function queries the
+        # h264-mp4 spec to decide which widgets to keep. Emulate a VHS-present
+        # h264-mp4 spec (declares crf + pix_fmt, not profile) so the default
+        # graph is left unchanged.
+        "_minimax_h3_output_format_inputs": lambda _payload: (
+            "video/h264-mp4", "", "",
+        ),
+        "_load_vhs_format_spec": lambda _name: {
+            "main_pass": [["crf", 19], ["pix_fmt", ["yuv420p"]]],
+        },
+        "_vhs_format_declares_widget": lambda spec, widget_name: (
+            any(
+                isinstance(w, list) and len(w) > 1 and w[0] == widget_name
+                for w in (spec.get("main_pass", []) if spec else [])
+            )
+        ),
     }
     exec(compile(ast.Module(body=[function], type_ignores=[]), str(RUNNER_PATH), "exec"), namespace)
     return namespace["_build_minimax_h3_2pass_api_prompt"]
