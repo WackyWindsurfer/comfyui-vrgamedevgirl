@@ -343,6 +343,18 @@ instance, two things are required:
    (self-contained; only needs `diffusers`, already in the venv). It must be
    installed in the instance's `custom_nodes/` and the instance restarted.
 
+3. **SageAttention + Triton (video builders, e.g. `minimax_h3`).** The video
+   builders' `DiffusionModelLoaderKJ` node defaults to `sage_attention: "auto"`,
+   which imports `sageattention` at runtime — so a video generation needs
+   `sageattention` **and** `triton` installed in the instance's Python. The
+   easy-install (8191) runs on an embedded Python that already has
+   `sageattention 2.2.0` + `triton` + `sageattn3`; a `.venv`-based instance
+   (8188) must add them. Note the Python-version coupling: the prebuilt
+   `triton` wheel is per-CPython-version, so install the `triton-windows` build
+   matching the venv's Python (e.g. `pip install triton-windows` for a 3.13 venv;
+   copying a 3.12 build fails with a DLL-load error). `sageattention`'s "auto"
+   mode also needs a supported CUDA arch (RTX 5090 = `sm120`, supported).
+
 A real end-to-end generation is covered by `tests/test_real_generation_e2e.py`
 (MCP client over stdio → REST → ComfyUI → GPU), which runs a real Krea2 image
 and asserts the job completes and the session revision is bumped. Model names
