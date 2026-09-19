@@ -4275,6 +4275,9 @@ def _run_lm_studio_native_chat(payload, input_value, temperature, top_p, max_new
     }
     if seed is not None:
         openai_body["seed"] = int(seed)
+    reasoning_mode = _lm_studio_reasoning_mode(payload, reasoning_default)
+    if reasoning_mode:
+        openai_body["reasoning"] = reasoning_mode
 
     # --- Build LM Studio native /api/v1/chat body ---
     native_body = {
@@ -4289,7 +4292,6 @@ def _run_lm_studio_native_chat(payload, input_value, temperature, top_p, max_new
     }
     if seed is not None:
         native_body["seed"] = int(seed)
-    reasoning_mode = _lm_studio_reasoning_mode(payload, reasoning_default)
     if reasoning_mode:
         native_body["reasoning"] = reasoning_mode
 

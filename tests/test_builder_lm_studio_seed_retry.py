@@ -129,9 +129,13 @@ class LmStudioSeedRetryTests(unittest.TestCase):
             text = run_vision(payload, "describe this image", [object()])
 
         self.assertEqual("Hello from LM Studio", text)
+        # OpenAI-first: the first (and, on success, only) call is the
+        # OpenAI-compatible /chat/completions body, whose user message
+        # content is a [text, image_url] list.
         self.assertEqual("off", calls[0]["reasoning"])
-        self.assertEqual("text", calls[0]["input"][0]["type"])
-        self.assertEqual("image", calls[0]["input"][1]["type"])
+        content = calls[0]["messages"][0]["content"]
+        self.assertEqual("text", content[0]["type"])
+        self.assertEqual("image_url", content[1]["type"])
 
     def test_explicit_vision_reasoning_mode_overrides_default(self):
         calls = []
