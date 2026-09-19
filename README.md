@@ -27,7 +27,7 @@ Use it to:
 
 ✨ **Or chat with a GPT and ask any question about the video builder. [HERE](https://chatgpt.com/g/g-6a6b4799d0e48191acf5a97fb2132ba9-ltx-2-3-music-video-builder-guide)** 
 
-🤖 **Drive the Builder from an agent (Hermes, Claude, ChatGPT, ...)?** The **Video Builder Agent API** exposes a normalized REST surface (`/api/v1/video-builder/...`) over the Builder for project/scene management, status, media, and export — see [docs/VIDEO_BUILDER_AGENT_API.md](docs/VIDEO_BUILDER_AGENT_API.md).
+🤖 **Drive the Builder from an agent (Hermes, Claude, ChatGPT, ...)?** The **Video Builder Agent API** exposes a normalized REST surface (`/api/v1/video-builder/...`) over the Builder for project/scene management, status, media, and export — see [docs/VIDEO_BUILDER_AGENT_API.md](docs/VIDEO_BUILDER_AGENT_API.md). For agentic control, run the thin stdio **MCP server** (`VRGDG_VideoBuilderMCP.py`, 20 tools) which wraps that REST API.
 
 ---
 

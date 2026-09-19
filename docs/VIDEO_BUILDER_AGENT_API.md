@@ -18,9 +18,9 @@ Implemented in `VRGDG_VideoBuilderAPI.py`; routes are registered on the ComfyUI
 ```
 
 > **Status:** Phase 1 (project/scene CRUD, status, media/audio/reference wrappers,
-> export/import) and Phase 2 (job layer, ComfyUI generation bridge, final-render
-> orchestration) are complete and live-verified. Phase 3 (MCP server + Hermes
-> skill + end-to-end Desktop run) is next.
+> export/import), Phase 2 (job layer, ComfyUI generation bridge, final-render
+> orchestration), and Phase 3 (stdio MCP server + Hermes skill + end-to-end run)
+> are complete and live-verified.
 
 ---
 
@@ -252,13 +252,40 @@ the scene count without stitching.
 Jobs are transient; the durable record is the render log + the session's media
 paths.
 
-## Phase 3 (planned)
+## Phase 3 — stdio MCP server + Hermes skill (DONE)
 
-- A thin **stdio MCP server** exposing the same operations as clean tools
-  (`create_video_project`, `add_scene`, `generate_scene_image`,
-  `generate_scene_video`, `render_project`, `get_job_status`, `export_project`, ...).
-- A Hermes Desktop skill for the agentic workflow (staged approval:
-  prompt → approve → generate → approve → next; revision-conflict retry).
+`VRGDG_VideoBuilderMCP.py` is a **thin stdio MCP server** over the REST API.
+Every tool is a one-to-one wrapper around an `/api/v1/video-builder/...`
+endpoint; it adds no generation logic (the ComfyUI instance does all the work)
+and returns the raw JSON envelope verbatim — including `revision` and the
+`409 REVISION_CONFLICT` error shape, which the agent uses to reconcile and retry.
+
+**Run:** `python VRGDG_VideoBuilderMCP.py` (stdio). Configure via env:
+`VRGDG_API_BASE` (e.g. `http://127.0.0.1:8188/api/v1/video-builder`) or
+`VRGDG_BASE_URL` (e.g. `http://127.0.0.1:8188`).
+
+**20 tools:** `list_projects`, `create_project`, `get_project`, `delete_project`,
+`branch_project`, `get_project_status`, `list_scenes`, `get_scene`, `add_scene`,
+`patch_scene`, `delete_scene`, `generate_scene`, `render_project`, `list_jobs`,
+`get_job`, `cancel_job`, `scan_scene_videos`, `save_scene_image`,
+`save_project_audio`, `export_project`.
+
+> **Dependency:** the server uses the `mcp` package (FastMCP). Pin `mcp<2`
+> (FastMCP was renamed to `MCPServer` in mcp 2.x). Install:
+> `pip install "mcp<2"`.
+
+**Agentic workflow (the Hermes skill drives this):**
+1. `create_project` → `add_scene` (pass `base_revision` to avoid 409).
+2. For each scene: `generate_scene` (returns a job) → poll `get_job` until
+   `complete`/`failed` → the media is persisted into the session.
+3. `render_project` (stitch + render log) → poll `get_job`.
+4. On a `409 REVISION_CONFLICT`, re-read the current revision (from the error's
+   `current.revision`) and retry the mutation.
+
+**Verified end-to-end** (`tests/test_mcp_e2e.py`, official MCP client over stdio
+against the live 8188 instance): server boots, lists 20 tools, and a full
+`create_project → add_scene → render_project (dry-run) → get_job → delete_project`
+round-trip succeeds; the test project is cleaned up.
 
 > **Note (environment):** a real GPU *completion* requires the diffusion/video
 > models + custom nodes to be installed on the target ComfyUI instance. The
