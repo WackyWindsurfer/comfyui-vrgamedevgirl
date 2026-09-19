@@ -315,3 +315,36 @@ and returns the raw JSON envelope verbatim — including `revision` and the
 - The module registers routes at import time; it is a no-op when
   `PromptServer.instance` is not yet available and re-runs on the next call, so
   ComfyUI's deferred startup still picks the routes up.
+
+## Running a real generation (environment requirements)
+
+The API/bridge/MCP stack is engine-agnostic and needs no special setup to *run*
+(jobs, validation, render orchestration all work with no models). But to actually
+produce media on a given instance, that instance must be able to see the models
+and the nodes the chosen builder's template uses. On the **HERMES (8188)**
+instance, two things are required:
+
+1. **Shared model folder.** The models live in a shared folder
+   (`E:\AI\models`), not the instance's local `models/` dir. Start the instance
+   with the flag pointing at the config that maps that folder:
+
+   ```
+   python main.py --port 8188 --listen 127.0.0.1 \
+     --extra-model-paths-config "D:/AI/ComfyUI-Installs/HERMES/extra_model_paths.yaml"
+   ```
+
+   Without the flag, `main.py` only looks in the ComfyUI root and the instance
+   sees almost no models (the config file lives in the *parent* dir, so it is
+   not auto-discovered).
+
+2. **Scheduler node pack.** The `krea2` and `zimage` image builders' templates
+   use the `FlowMatch Euler Discrete Scheduler (Custom)` node, which is provided
+   by the `erosdiffusion-eulerflowmatchingdiscretescheduler` custom-node pack
+   (self-contained; only needs `diffusers`, already in the venv). It must be
+   installed in the instance's `custom_nodes/` and the instance restarted.
+
+A real end-to-end generation is covered by `tests/test_real_generation_e2e.py`
+(MCP client over stdio → REST → ComfyUI → GPU), which runs a real Krea2 image
+and asserts the job completes and the session revision is bumped. Model names
+must match **exactly** what the live instance enumerates (e.g. a model in a
+subfolder is listed with a `subfolder\name` prefix).
