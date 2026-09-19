@@ -32,6 +32,8 @@ import copy
 import json
 import os
 import time
+import urllib.error
+import urllib.request
 import uuid
 
 # ---------------------------------------------------------------------------
@@ -244,6 +246,22 @@ def _scene_to_api(segment, index):
     return out
 
 
+def _find_segment(session, scene_id):
+    """Return the segment dict for a scene id (exact or ordinal), or None."""
+    segments = session.get("segments", []) or []
+    if not segments:
+        return None
+    target = str(scene_id)
+    for seg in segments:
+        if str(seg.get("id", "")) == target:
+            return seg
+    # ordinal fallback: 1-based index
+    idx = int(target) - 1 if target.isdigit() else -1
+    if 0 <= idx < len(segments):
+        return segments[idx]
+    return None
+
+
 def _scene_to_segment(scene, existing_segment=None, target=None):
     """Apply a normalized scene onto a legacy segment (lossless).
 
@@ -373,6 +391,381 @@ def find_scene(session, scene_id=None, scene_number=None):
             except (TypeError, ValueError):
                 pass
     return None, None
+
+
+# ---------------------------------------------------------------------------
+# Job layer (transient; render logs are the durable record)
+# ---------------------------------------------------------------------------
+import threading
+
+_JOBS = {}
+_JOBS_LOCK = threading.Lock()
+_JOBS_FILE_NAME = "vrgdg_jobs.json"
+
+
+def _new_job(project_id, operation, scene_id=None, payload=None):
+    job = {
+        "id": "job_" + uuid.uuid4().hex[:12],
+        "project_id": project_id,
+        "scene_id": scene_id,
+        "operation": operation,
+        "status": "queued",
+        "progress": 0.0,
+        "message": None,
+        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "started_at": None,
+        "completed_at": None,
+        "comfyui_prompt_id": None,
+        "result": None,
+        "error": None,
+        "cancel_requested": False,
+    }
+    with _JOBS_LOCK:
+        _JOBS[job["id"]] = job
+    return job
+
+
+def _update_job(job_id, **fields):
+    with _JOBS_LOCK:
+        job = _JOBS.get(job_id)
+        if not job:
+            return None
+        job.update(fields)
+        if fields.get("status") in ("complete", "failed", "cancelled") and not job.get("completed_at"):
+            job["completed_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        if fields.get("status") == "running" and not job.get("started_at"):
+            job["started_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        return dict(job)
+
+
+def _get_job(job_id):
+    with _JOBS_LOCK:
+        job = _JOBS.get(job_id)
+        return dict(job) if job else None
+
+
+def _list_jobs(project_id=None):
+    with _JOBS_LOCK:
+        jobs = [dict(j) for j in _JOBS.values()]
+    if project_id:
+        jobs = [j for j in jobs if j["project_id"] == project_id]
+    jobs.sort(key=lambda j: j.get("created_at") or "", reverse=True)
+    return jobs
+
+
+# ---------------------------------------------------------------------------
+# ComfyUI generation bridge (reuses the existing build_*_api_prompt functions)
+# ---------------------------------------------------------------------------
+def _comfyui_base_url():
+    port = os.environ.get("VRGDG_COMFYUI_PORT") or os.environ.get("COMFYUI_PORT")
+    if not port:
+        try:
+            from server import PromptServer
+            port = getattr(PromptServer.instance, "port", None)
+        except Exception:
+            port = None
+    return "http://127.0.0.1:%s" % (port or 8188)
+
+
+def _comfyui_get(path, timeout=10):
+    req = urllib.request.Request(_comfyui_base_url() + path)
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _comfyui_post(path, body, timeout=30):
+    data = json.dumps(body).encode("utf-8")
+    req = urllib.request.Request(_comfyui_base_url() + path, data=data,
+                                headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        # Surface ComfyUI's error body (node_errors / missing_node_type) so the
+        # job error is actionable instead of a bare status line.
+        try:
+            detail = json.loads(exc.read().decode("utf-8"))
+        except Exception:
+            detail = {"status": exc.code}
+        msg = detail.get("error", {}).get("message") or detail.get("message") or str(exc)
+        node_errors = detail.get("node_errors")
+        raise RuntimeError("ComfyUI %s: %s%s" % (path, msg,
+                           (" | node_errors: %s" % node_errors) if node_errors else ""))
+
+
+def _comfyui_queue_prompt(prompt, client_id=None):
+    body = {"prompt": prompt}
+    if client_id:
+        body["client_id"] = client_id
+    res = _comfyui_post("/prompt", body)
+    return res.get("prompt_id") or res.get("id")
+
+
+def _comfyui_wait_history(prompt_id, timeout_s, poll_s=2.0, job_id=None):
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        if job_id:
+            j = _get_job(job_id)
+            if j and j["cancel_requested"]:
+                raise RuntimeError("cancelled")
+        try:
+            item = _comfyui_get("/history/%s" % prompt_id)
+        except Exception:
+            item = None
+        if item:
+            entry = next(iter(item.values()), {})
+            status = entry.get("status", {}) or {}
+            if status.get("status_str") == "error":
+                raise RuntimeError("ComfyUI execution error: %s" % (status.get("messages") or status))
+            if status.get("completed") or status.get("status_str") in ("success", "success "):
+                return entry
+        time.sleep(poll_s)
+    raise TimeoutError("ComfyUI prompt %s did not complete within %ss" % (prompt_id, timeout_s))
+
+
+# Builder whitelist: name -> function in VRGDG_WorkflowRunnerNodes.
+# The agent supplies the builder name + builder_payload; the bridge calls the
+# existing builder (which loads the correct template and patches it) and queues
+# the resulting ComfyUI API prompt. This keeps the bridge engine-agnostic and
+# reuses the exact generation path the Video Builder UI uses.
+_BUILDER_WHITELIST = {
+    "zimage": "_build_zimage_api_prompt",
+    "krea2": "_build_krea2_api_prompt",
+    "krea2_2pass": "_build_krea2_2pass_api_prompt",
+    "ernie_image": "_build_ernie_image_api_prompt",
+    "flux_klein": "_build_flux_klein_api_prompt",
+    "nb_image": "_build_nb_image_api_prompt",
+    "i2v": "_build_i2v_api_prompt",
+    "t2v": "_build_t2v_api_prompt",
+    "rtv": "_build_rtv_api_prompt",
+    "minimax_h3": "_build_minimax_h3_api_prompt",
+    "minimax_h3_2pass": "_build_minimax_h3_2pass_api_prompt",
+    "minimax_h3_advanced_2pass": "_build_minimax_h3_advanced_2pass_api_prompt",
+    "minimax_h3_3pass": "_build_minimax_h3_3pass_api_prompt",
+    "ingredients": "_build_ingredients_api_prompt",
+    "flf": "_build_flf_api_prompt",
+    "id_lora": "_build_id_lora_api_prompt",
+}
+
+
+# ---------------------------------------------------------------------------
+# Context-aware imports for the Builder / Runner modules.
+# In the live ComfyUI instance this module is a package submodule, so relative
+# imports work. In the standalone unit-test context it is loaded as a top-level
+# module, so we fall back to absolute imports.
+# ---------------------------------------------------------------------------
+def _import_builder():
+    try:
+        from . import VRGDG_MusicVideoBuilderNodes as m
+    except ImportError:
+        import VRGDG_MusicVideoBuilderNodes as m
+    return m
+
+
+def _import_runner():
+    try:
+        from . import VRGDG_WorkflowRunnerNodes as m
+    except ImportError:
+        import VRGDG_WorkflowRunnerNodes as m
+    return m
+
+
+def _build_api_prompt(builder_name, builder_payload):
+    W = _import_runner()
+    funcs = {
+        "zimage": W._build_zimage_api_prompt, "krea2": W._build_krea2_api_prompt,
+        "krea2_2pass": W._build_krea2_2pass_api_prompt,
+        "ernie_image": W._build_ernie_image_api_prompt,
+        "flux_klein": W._build_flux_klein_api_prompt,
+        "nb_image": W._build_nb_image_api_prompt,
+        "i2v": W._build_i2v_api_prompt, "t2v": W._build_t2v_api_prompt,
+        "rtv": W._build_rtv_api_prompt,
+        "minimax_h3": W._build_minimax_h3_api_prompt,
+        "minimax_h3_2pass": W._build_minimax_h3_2pass_api_prompt,
+        "minimax_h3_advanced_2pass": W._build_minimax_h3_advanced_2pass_api_prompt,
+        "minimax_h3_3pass": W._build_minimax_h3_3pass_api_prompt,
+        "ingredients": W._build_ingredients_api_prompt,
+        "flf": W._build_flf_api_prompt,
+        "id_lora": W._build_id_lora_api_prompt,
+    }
+    fn = funcs.get(builder_name)
+    if not fn:
+        raise ValueError("unknown builder: %s (known: %s)" % (builder_name, sorted(funcs)))
+    return fn(builder_payload or {})
+
+
+def _extract_saved_path(res):
+    if isinstance(res, str):
+        return res
+    if isinstance(res, dict):
+        for key in ("path", "saved_path", "file_path", "output_path", "video_path"):
+            v = res.get(key)
+            if isinstance(v, str) and v:
+                return v
+        for key in ("image", "video", "file"):
+            v = res.get(key)
+            if isinstance(v, str) and v:
+                return v
+    return None
+
+
+_VIDEO_EXTS = (".mp4", ".mov", ".webm", ".mkv", ".avi")
+
+
+def _find_newest_video(folder, since=None):
+    """Return the newest video file in a folder (optionally newer than `since` ts)."""
+    if not folder or not os.path.isdir(folder):
+        return None
+    candidates = []
+    for name in os.listdir(folder):
+        if name.lower().endswith(_VIDEO_EXTS):
+            path = os.path.join(folder, name)
+            if os.path.isfile(path):
+                candidates.append((os.path.getmtime(path), path))
+    if not candidates:
+        return None
+    if since is not None:
+        recent = [c for c in candidates if c[0] >= since]
+        if recent:
+            candidates = recent
+    candidates.sort(reverse=True)
+    return candidates[0][1]
+
+
+def _run_generation_job(job_id, project_id, scene_id, builder, builder_payload,
+                       timeout_s, collect, save_folder):
+    """Worker (runs in a thread). Build -> queue -> poll -> collect/save -> persist."""
+    B = _import_builder()
+    W = _import_runner()
+    _load_builder_session = B._load_builder_session
+    _save_builder_session = B._save_builder_session
+    _BUILDER_SAVE_LOCK = B._BUILDER_SAVE_LOCK
+    _save_generated_image = W._save_generated_image
+    _collect_scene_video = W._collect_scene_video
+    try:
+        _update_job(job_id, status="running", message="building prompt")
+        built = _build_api_prompt(builder, builder_payload)
+        api_prompt = built["prompt"]
+        _update_job(job_id, message="queued to ComfyUI")
+        prompt_id = _comfyui_queue_prompt(api_prompt)
+        _update_job(job_id, comfyui_prompt_id=prompt_id, message="waiting for ComfyUI")
+        history = _comfyui_wait_history(prompt_id, timeout_s, job_id=job_id)
+        _update_job(job_id, message="collecting output")
+
+        result = {"prompt_id": prompt_id}
+        saved_path = None
+        if collect == "image":
+            # Find the first output image in the history outputs.
+            image = None
+            outputs = history.get("outputs", {}) or {}
+            for node_out in outputs.values():
+                for entry in (node_out.get("images") or []):
+                    image = entry
+                    break
+                if image:
+                    break
+            if image:
+                res = _save_generated_image({"image": image, "save_folder": save_folder})
+                saved_path = _extract_saved_path(res)
+            result["image"] = image
+        elif collect == "video":
+            # The i2v/t2v/rtv builders set output_folder; the produced video
+            # file is written there with a runtime name. Discover the newest
+            # video file, then collect it into the project's rendered folder.
+            output_folder = built.get("output_folder")
+            video_file = _find_newest_video(output_folder)
+            if not video_file:
+                raise RuntimeError("no video file found in output folder %s" % output_folder)
+            res = _collect_scene_video({
+                "source_path": video_file, "project_folder": project_id,
+            })
+            saved_path = res.get("video_path")
+            result["video"] = saved_path
+            result["source_video"] = video_file
+
+        # Persist the generated media into the session (lossless, locked).
+        if saved_path and scene_id:
+            with _BUILDER_SAVE_LOCK:
+                loaded = _load_builder_session(project_id)
+                session = loaded["session"]
+                seg = _find_segment(session, scene_id)
+                if seg is not None:
+                    if collect == "image":
+                        seg["image_path"] = saved_path
+                    else:
+                        seg["video_path"] = saved_path
+                session["builder_save_revision"] = int(session.get("builder_save_revision") or 0) + 1
+                _save_builder_session({
+                    "project_folder": project_id, "session": session,
+                    "audio_path": session.get("audio_path", ""),
+                })
+                result["revision"] = session.get("builder_save_revision")
+
+        _update_job(job_id, status="complete", progress=1.0, message="complete",
+                   result=result)
+    except Exception as exc:
+        _update_job(job_id, status="failed", message="failed", error=str(exc))
+
+
+def _run_render_job(job_id, project_id, dry_run, scene_ids, audio_path,
+                    audio_start, audio_duration):
+    """Worker (runs in a thread). Gather scene videos -> stitch -> render log."""
+    B = _import_builder()
+    W = _import_runner()
+    _load_builder_session = B._load_builder_session
+    _save_builder_render_log = B._save_builder_render_log
+    _BUILDER_SAVE_LOCK = B._BUILDER_SAVE_LOCK
+    _stitch_scene_videos = W._stitch_scene_videos
+    try:
+        _update_job(job_id, status="running", message="gathering scene videos")
+        with _BUILDER_SAVE_LOCK:
+            loaded = _load_builder_session(project_id)
+        session = loaded["session"]
+        segments = session.get("segments", []) or []
+        if scene_ids:
+            wanted = {str(s) for s in scene_ids}
+            segments = [s for s in segments if str(s.get("id")) in wanted]
+        scene_paths = [s.get("video_path") for s in segments if s.get("video_path")]
+        if not scene_paths:
+            raise ValueError("no rendered scene videos found for project %s" % project_id)
+
+        result = {"scene_count": len(scene_paths), "scene_paths": scene_paths}
+        if dry_run:
+            _update_job(job_id, status="complete", progress=1.0, message="dry run",
+                       result=result)
+            return
+
+        _update_job(job_id, message="stitching")
+        res = _stitch_scene_videos({
+            "scene_paths": scene_paths, "project_folder": project_id,
+            "audio_path": audio_path, "audio_start": audio_start,
+            "audio_duration": audio_duration,
+        })
+        final_path = res.get("final_video_path")
+        result["final_video"] = final_path
+        result["scene_count"] = res.get("scene_count", len(scene_paths))
+
+        # Durable render log (this also persists the session's render_logs).
+        with _BUILDER_SAVE_LOCK:
+            _save_builder_render_log({
+                "project_folder": project_id,
+                "log": {
+                    "id": "render_%s" % int(time.time()),
+                    "rendered_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "scene_count": len(scene_paths),
+                    "final_video_path": final_path,
+                    "status": "complete",
+                },
+            })
+        # Re-read revision for the response (render log already saved the session).
+        with _BUILDER_SAVE_LOCK:
+            loaded = _load_builder_session(project_id)
+            result["revision"] = loaded["session"].get("builder_save_revision")
+
+        _update_job(job_id, status="complete", progress=1.0, message="complete",
+                   result=result)
+    except Exception as exc:
+        _update_job(job_id, status="failed", message="failed", error=str(exc))
 
 
 # ---------------------------------------------------------------------------
@@ -793,6 +1186,79 @@ def _register_video_builder_api():
     server_instance.routes.post(
         f"{base}/projects/{{project_id}}/audio/mix"
     )(_media_wrapper(_prepare_scene_audio_mix))
+
+    # -- jobs (generation + render bridge) --------------------------------
+    import threading
+
+    def _spawn(worker, *args):
+        t = threading.Thread(target=worker, args=args, daemon=True)
+        t.start()
+        return t
+
+    @server_instance.routes.post(f"{base}/jobs/generate")
+    async def job_generate(request):
+        payload = await _read_json(request)
+        project_id = request.match_info.get("project_id", "") or payload.get("project_id", "")
+        project = _resolve(project_id)
+        if not project:
+            return _err("PROJECT_NOT_FOUND", "Project not found.", 404)
+        builder = str(payload.get("builder", "") or "").strip()
+        if not builder:
+            return _err("MISSING_FIELD", "builder is required.", 400)
+        if builder not in _BUILDER_WHITELIST:
+            return _err("UNKNOWN_BUILDER",
+                       "unknown builder: %s (known: %s)" % (builder, sorted(_BUILDER_WHITELIST)),
+                       400)
+        scene_id = payload.get("scene_id")
+        collect = str(payload.get("collect", "video") or "video").strip().lower()
+        if collect not in ("video", "image"):
+            return _err("MISSING_FIELD", "collect must be 'video' or 'image'.", 400)
+        timeout_s = int(payload.get("timeout_s", 900) or 900)
+        save_folder = payload.get("save_folder", "")
+        job = _new_job(project_id, "generate", scene_id, payload)
+        _spawn(_run_generation_job, job["id"], project["project_folder"], scene_id, builder,
+               payload.get("builder_payload", {}), timeout_s, collect, save_folder)
+        return _ok(_get_job(job["id"]))
+
+    @server_instance.routes.post(f"{base}/jobs/render")
+    async def job_render(request):
+        payload = await _read_json(request)
+        project_id = request.match_info.get("project_id", "") or payload.get("project_id", "")
+        project = _resolve(project_id)
+        if not project:
+            return _err("PROJECT_NOT_FOUND", "Project not found.", 404)
+        dry_run = bool(payload.get("dry_run", False))
+        scene_ids = payload.get("scene_ids") or []
+        audio_path = payload.get("audio_path", "")
+        audio_start = float(payload.get("audio_start", 0) or 0)
+        audio_duration = float(payload.get("audio_duration", 0) or 0)
+        job = _new_job(project_id, "render", None, payload)
+        _spawn(_run_render_job, job["id"], project["project_folder"], dry_run, scene_ids,
+               audio_path, audio_start, audio_duration)
+        return _ok(_get_job(job["id"]))
+
+    @server_instance.routes.get(f"{base}/jobs")
+    async def job_list(request):
+        project_id = request.query.get("project_id", "")
+        jobs = _list_jobs(project_id or None)
+        return web.json_response({"ok": True, "jobs": jobs})
+
+    @server_instance.routes.get(f"{base}/jobs/{{job_id}}")
+    async def job_status(request):
+        job = _get_job(request.match_info["job_id"])
+        if not job:
+            return _err("JOB_NOT_FOUND", "Job not found.", 404)
+        return _ok(job)
+
+    @server_instance.routes.post(f"{base}/jobs/{{job_id}}/cancel")
+    async def job_cancel(request):
+        job = _get_job(request.match_info["job_id"])
+        if not job:
+            return _err("JOB_NOT_FOUND", "Job not found.", 404)
+        if job["status"] in ("complete", "failed", "cancelled"):
+            return _err("JOB_DONE", "Job already finished.", 409)
+        _update_job(job["id"], cancel_requested=True)
+        return _ok(_get_job(job["id"]))
 
     print(f"[VRGDG Video Builder API] registered under {base}/")
 

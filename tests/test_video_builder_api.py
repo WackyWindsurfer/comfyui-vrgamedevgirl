@@ -196,5 +196,89 @@ class SessionNormalizationTests(unittest.TestCase):
         self.assertEqual(project["references"], {"subjects": [], "locations": []})
 
 
+class JobRegistryTests(unittest.TestCase):
+    def test_new_job_defaults(self):
+        job = api._new_job("demo", "generate", "scene_0001", {"builder": "i2v"})
+        self.assertEqual(job["status"], "queued")
+        self.assertEqual(job["progress"], 0.0)
+        self.assertFalse(job["cancel_requested"])
+        self.assertIsNotNone(job["id"])
+        self.assertIsNone(job["error"])
+
+    def test_update_job_lifecycle_timestamps(self):
+        job = api._new_job("demo", "render")
+        jid = job["id"]
+        api._update_job(jid, status="running")
+        self.assertIsNotNone(api._get_job(jid)["started_at"])
+        self.assertIsNone(api._get_job(jid)["completed_at"])
+        api._update_job(jid, status="complete", progress=1.0)
+        self.assertIsNotNone(api._get_job(jid)["completed_at"])
+
+    def test_list_jobs_filters_by_project(self):
+        a = api._new_job("projA", "generate")["id"]
+        b = api._new_job("projB", "render")["id"]
+        api._update_job(a, status="complete")
+        api._update_job(b, status="failed", error="boom")
+        only_a = api._list_jobs("projA")
+        self.assertTrue(any(j["id"] == a for j in only_a))
+        self.assertFalse(any(j["id"] == b for j in only_a))
+        failed = api._get_job(b)
+        self.assertEqual(failed["error"], "boom")
+
+    def test_get_job_missing_returns_none(self):
+        self.assertIsNone(api._get_job("does_not_exist"))
+
+
+class FindSegmentTests(unittest.TestCase):
+    def _session(self):
+        return {"segments": [
+            {"id": "scene_0001", "scene_number": 1},
+            {"scene_number": 2},  # no id -> ordinal
+        ]}
+
+    def test_by_id(self):
+        seg = api._find_segment(self._session(), "scene_0001")
+        self.assertEqual(seg["scene_number"], 1)
+
+    def test_by_ordinal(self):
+        seg = api._find_segment(self._session(), "2")
+        self.assertEqual(seg["scene_number"], 2)
+
+    def test_missing(self):
+        self.assertIsNone(api._find_segment(self._session(), "scene_9999"))
+        self.assertIsNone(api._find_segment({"segments": []}, "1"))
+
+
+class ExtractSavedPathTests(unittest.TestCase):
+    def test_dict_various_keys(self):
+        self.assertEqual(api._extract_saved_path({"saved_path": "/x/a.png"}), "/x/a.png")
+        self.assertEqual(api._extract_saved_path({"video_path": "/x/a.mp4"}), "/x/a.mp4")
+        self.assertEqual(api._extract_saved_path({"path": "/x/a.png"}), "/x/a.png")
+
+    def test_plain_string(self):
+        self.assertEqual(api._extract_saved_path("/x/a.png"), "/x/a.png")
+
+    def test_nothing_found(self):
+        self.assertIsNone(api._extract_saved_path({"foo": "bar"}))
+        self.assertIsNone(api._extract_saved_path(None))
+
+
+class FindNewestVideoTests(unittest.TestCase):
+    def test_picks_newest(self):
+        import tempfile, time as _t
+        d = tempfile.mkdtemp()
+        old = os.path.join(d, "old.mp4")
+        new = os.path.join(d, "new.mp4")
+        open(old, "w").close()
+        open(new, "w").close()
+        _t.sleep(0.05)
+        os.utime(old, (1000, 1000))
+        self.assertEqual(api._find_newest_video(d), new)
+
+    def test_missing_folder(self):
+        self.assertIsNone(api._find_newest_video("/no/such/folder"))
+        self.assertIsNone(api._find_newest_video(None))
+
+
 if __name__ == "__main__":
     unittest.main()

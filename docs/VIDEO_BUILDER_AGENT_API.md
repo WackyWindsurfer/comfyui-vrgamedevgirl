@@ -18,8 +18,9 @@ Implemented in `VRGDG_VideoBuilderAPI.py`; routes are registered on the ComfyUI
 ```
 
 > **Status:** Phase 1 (project/scene CRUD, status, media/audio/reference wrappers,
-> export/import) is complete and live-verified. The job layer, the ComfyUI
-> generation bridge, and final-render orchestration are Phase 2.
+> export/import) and Phase 2 (job layer, ComfyUI generation bridge, final-render
+> orchestration) are complete and live-verified. Phase 3 (MCP server + Hermes
+> skill + end-to-end Desktop run) is next.
 
 ---
 
@@ -197,17 +198,59 @@ These pass the request payload through to the existing Builder function (with
 
 ---
 
-## Phase 2 (in progress)
+## Jobs (Phase 2 — generation + render bridge)
 
-- **Job layer** — `POST .../image/generate`, `POST .../video/generate`,
-  `GET /jobs/{job_id}`, `POST /jobs/{job_id}/cancel`; a job registry mapping
-  VRGDG job IDs to ComfyUI prompt IDs.
-- **Generation bridge** — `_run_generation_job`: scene → engine (LTX / MiniMax H3)
-  → ComfyUI workflow template → queue → poll → collect → save media → update job
-  and scene.
-- **Final-render orchestration** — `POST /projects/{id}/render`: verify/generate
-  missing scene media → stitch (ffmpeg concat + audio mux) → progress via job →
-  `_save_builder_render_log()` → final artifact metadata.
+The job layer is **engine-agnostic**. The agent supplies a `builder` name and a
+`builder_payload`; the bridge calls the existing `_build_*_api_prompt` function
+(whitelisted), which loads the correct workflow template and patches it, then
+queues the resulting ComfyUI API prompt, polls `/history`, collects the output,
+and persists it into the session. This reuses the exact generation path the
+Video Builder UI uses — no engine logic is duplicated.
+
+**`POST /api/v1/video-builder/jobs/generate`**
+
+```json
+{
+  "project_id": "my-video",
+  "scene_id": "1",
+  "builder": "i2v",
+  "collect": "video",
+  "timeout_s": 900,
+  "builder_payload": { "i2v_prompt": "...", "width": 512, "height": 512, "length": 2 }
+}
+```
+
+- `builder` is one of: `zimage`, `krea2`, `krea2_2pass`, `ernie_image`,
+  `flux_klein`, `nb_image`, `i2v`, `t2v`, `rtv`, `minimax_h3`,
+  `minimax_h3_2pass`, `minimax_h3_advanced_2pass`, `minimax_h3_3pass`,
+  `ingredients`, `flf`, `id_lora`.
+- `collect` is `video` (i2v/t2v/rtv → `_collect_scene_video`) or `image`
+  (→ `_save_generated_image`).
+- The produced media is written into the scene's `video_path` / `image_path`
+  (lossless, revision-bumped). ComfyUI errors (missing node, missing model,
+  validation) are surfaced in `job.error`.
+
+**`POST /api/v1/video-builder/jobs/render`**
+
+```json
+{ "project_id": "my-video", "dry_run": true, "scene_ids": [], "audio_path": "" }
+```
+
+Gathers each scene's `video_path`, runs `_stitch_scene_videos` (ffmpeg concat +
+audio mux), and writes a durable `_save_builder_render_log`. `dry_run` reports
+the scene count without stitching.
+
+**Job lifecycle**
+
+- `GET /api/v1/video-builder/jobs?project_id=...` — list (newest first).
+- `GET /api/v1/video-builder/jobs/{job_id}` — status
+  (`queued` → `running` → `complete` / `failed` / `cancelled`), `message`,
+  `comfyui_prompt_id`, `result`, `error`.
+- `POST /api/v1/video-builder/jobs/{job_id}/cancel` — cooperative cancel (checked
+  between poll ticks).
+
+Jobs are transient; the durable record is the render log + the session's media
+paths.
 
 ## Phase 3 (planned)
 
@@ -216,6 +259,12 @@ These pass the request payload through to the existing Builder function (with
   `generate_scene_video`, `render_project`, `get_job_status`, `export_project`, ...).
 - A Hermes Desktop skill for the agentic workflow (staged approval:
   prompt → approve → generate → approve → next; revision-conflict retry).
+
+> **Note (environment):** a real GPU *completion* requires the diffusion/video
+> models + custom nodes to be installed on the target ComfyUI instance. The
+> bridge is verified end-to-end (build → queue → poll → collect → persist) against
+> the live instance; builder-level validation errors (missing model / node /
+> audio) surface cleanly in `job.error`.
 
 ---
 
