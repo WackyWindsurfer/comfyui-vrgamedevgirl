@@ -40,9 +40,9 @@ permission is not captured merely because it has similar ideas or features.
 The terms start with the commit adopting them as the root LICENSE, only for code
 and associated documentation Jean Thompson owns or has express authority to license
 under them. They do not revoke permissions already granted for the same code or
-earlier releases. The [previous root license notice](PREVIOUS-LICENSE.txt) is retained
-as a historical record, not an alternative grant for newly covered code. Git history
-also preserves earlier versions and their notices.
+earlier releases. Git history preserves earlier versions and their license notices.
+The root LICENSE is the single current project license file; no separate historical
+project license file is distributed.
 
 ComfyUI, model weights, checkpoints, LoRAs, datasets, dependencies, and third-party
 contributions retain their applicable licenses. A file being present in this
