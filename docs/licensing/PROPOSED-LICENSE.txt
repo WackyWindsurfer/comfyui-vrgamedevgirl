@@ -6,7 +6,7 @@ covered release and files, and commercial contact details.
 VRGameDevGirl Community and Commercial License — Version 1.0
 Copyright (c) 2026 Jean Thompson (VRGameDevGirl). All rights reserved.
 Project: https://github.com/vrgamegirl19/comfyui-vrgamedevgirl
-Commercial licensing: [LICENSOR TO PROVIDE EMAIL OR SALES PAGE]
+Commercial licensing contact: Jean Thompson <jeanthompson1984@gmail.com>
 First covered release and code scope: [TO BE IDENTIFIED BEFORE ACTIVATION]
 
 1. Licensor, Software, and scope

@@ -78,7 +78,9 @@ email address, or URL into this project's terms.
    code/dependencies. An exclusion sentence alone cannot resolve combined-work or
    derivative-work obligations. A restrictive license may be unavailable for code
    that must be distributed under GPL; assess actual integration and provenance.
-3. Supply the commercial email or sales page and confirm the boundary cases above.
+3. Commercial licensing contact: Jean Thompson —
+   [jeanthompson1984@gmail.com](mailto:jeanthompson1984@gmail.com).
+   Confirm the boundary cases above.
    Set commercial pricing, duration, deployments, support, and payment terms in a
    separate agreement. Choose fixed fees or royalties there; this proposal neither
    invents prices nor promises automatic collection of money from infringers.
@@ -100,7 +102,8 @@ email address, or URL into this project's terms.
 > modifications are permitted under the license. Selling the covered software,
 > commercial forks or integrations, paid access, or commercial hosted generation
 > services requires a separate paid written license from Jean Thompson
-> (VRGameDevGirl). Contact: [approved licensing contact]. A license does not transfer
+> (VRGameDevGirl). Contact: [jeanthompson1984@gmail.com](mailto:jeanthompson1984@gmail.com).
+> A license does not transfer
 > copyright ownership. Models and third-party code retain their own terms, and
 > previously granted licenses remain effective. See LICENSE for complete terms.
 
