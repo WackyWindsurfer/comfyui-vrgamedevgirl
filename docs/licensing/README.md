@@ -51,3 +51,26 @@ References for review:
 - [AGPLv3](https://www.gnu.org/licenses/agpl-3.0.en.html): existing license terms.
 - [Open Source Definition](https://opensource.org/osd): open-source licenses cannot
   exclude commercial fields of use.
+
+## Review of the suggested PolyForm template
+
+The supplied six-section template is not the official PolyForm Noncommercial
+License 1.0.0. The official text includes separate patent, violation/cure, and
+noncommercial-organization provisions that the supplied template omits. PolyForm's
+[license-text reuse terms](https://github.com/polyformproject/polyform-licenses/blob/1.0.0/README.md)
+require removing its name and website references from modified license texts.
+Do not publish the supplied rewrite under the PolyForm name or copy its unrelated
+copyright holder and project URL.
+
+The [official license](https://polyformproject.org/licenses/noncommercial/1.0.0)
+is an alternative if its broader permissions are desired: it permits noncommercial
+purposes generally and expressly permits uses by specified organizations, including
+charities, educational institutions, and government institutions regardless of their
+funding source. That differs from an individuals-only personal-use grant.
+
+If choosing PolyForm, use the official text unchanged and document the separately
+available paid commercial license alongside it. Extra explanatory notices cannot
+narrow rights the official license grants. If retaining the stricter personal-use
+policy, keep a separately named custom license and have counsel review it. The
+current proposal uses that separate name and requires both a written commercial
+agreement and its required payment, rather than permission alone.
