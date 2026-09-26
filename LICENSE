@@ -17,7 +17,8 @@ includes covered portions incorporated into modified versions, forks, ports,
 packages, compiled forms, and derivative works, to the extent copyright applies.
 
 The Software excludes ComfyUI, model weights, checkpoints, LoRAs, datasets,
-dependencies, vendored materials, and contributions or other materials owned by
+dependencies, third-party LUTs and other assets, vendored materials, and
+contributions or other materials owned by
 others unless their owners expressly authorize this license. Those materials
 retain their own licenses and notices. This license cannot override their rights
 or copyleft requirements. Mere inclusion in this repository does not transfer

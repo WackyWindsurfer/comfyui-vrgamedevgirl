@@ -1,3 +1,12 @@
+HISTORICAL NOTICE — PREVIOUS ROOT LICENSE
+
+The text below preserves the repository notice used before adoption of the
+VRGameDevGirl Community and Commercial License. It is not a new or alternative
+grant for code first released under the current root LICENSE. Previously granted
+rights continue under their applicable terms. See ../../LICENSE and README.md.
+
+--- Original notice follows unchanged ---
+
 GNU Affero General Public License v3.0
 
 Copyright (c) 2026 Jean Thompson

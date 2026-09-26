@@ -29,7 +29,7 @@ Commercial licensing contact: **Jean Thompson** —
 | Publish a monetized tutorial about using the Builder | Free; no paid software access may be bundled |
 | A company buys a commercial license | Only rights specified in its contract; no automatic copyright ownership |
 | A company wants to purchase the copyright or exclusive ownership | Separately negotiated, signed rights-transfer agreement |
-| Use a prior AGPL release under that release's terms | Earlier rights continue; this proposal cannot impose a new fee |
+| Use a prior AGPL release under that release's terms | Earlier rights continue; this license cannot impose a new fee |
 
 Examples summarize the [LICENSE](../../LICENSE); its full terms control.
 Code that is independently implemented or otherwise usable without copyright
@@ -75,3 +75,52 @@ license or rights in music, likenesses, or other inputs.
 
 Licensing terms do not guarantee discovery of every misuse or collection of fees.
 Enforceability and any remedy depend on applicable law and the relevant facts.
+
+## Distribution metadata
+
+The Python package metadata references the root LICENSE. The private browser-helper
+package has no separate license grant; the root terms apply to covered original
+code, while its dependencies retain their own licenses. Model-specific notices in
+`Yue2/README.md` concern upstream materials and are not alternative licenses for
+this project's original code.
+
+The registry workflow currently publishes on manual dispatch or changes to
+`pyproject.toml`, `.comfyignore`, or the publishing workflow itself. A LICENSE-only
+change does not trigger it. Publish a new appropriately versioned registry package
+through the existing release process when ready; prior package versions retain
+the terms under which they were distributed.
+
+## Bundled third-party LUT notices
+
+The following LUT files contain third-party copyright notices and are excluded
+from Jean Thompson's original-code license. The notices are preserved unchanged.
+This inventory is not a grant of asset rights or confirmation that redistribution
+is authorized. Verify the original download/license terms and retain any required
+license documents before distributing these assets; remove or replace assets if
+permission cannot be established. The absence of a notice in another asset does
+not establish ownership or unrestricted rights.
+
+| File under `LUTS/` | Existing notice |
+| --- | --- |
+| `Bright_High_Contrast_Vivid_Green_Tint_Fuji_Provia.cube` | Copyright: (C) Copyright 2022 Tim Martin and Presetpro.com |
+| `Cool_Grade.cube` | Copyright: (C) Copyright 2017 PremiumBeat |
+| `Dark_High_Contrast_Vivid_Cinematic.cube` | Copyright: (C) Copyright 2017 PremiumBeat |
+| `Dark_High_Contrast_Vivid_Cinematic_2.cube` | Copyright: (C) Copyright 2017 PremiumBeat.com |
+| `Dark_High_Contrast_Vivid_Cool.cube` | Copyright: (C) Copyright 2017 PremiumBeat.com |
+| `Dark_High_Contrast_Vivid_Magenta_Tint.cube` | Copyright: (C) Copyright 2017 PremiumBeat |
+| `Dark_High_Contrast_Vivid_Warm.cube` | Copyright: (C) Copyright 2017 PremiumBeat.com |
+| `Dark_Soft_Vivid_Cinematic.cube` | Copyright: (C) Copyright 2017 PremiumBeat.com |
+| `Dark_Soft_Vivid_Cinematic_2.cube` | Copyright: (C) Copyright 2017 PremiumBeat |
+| `Dark_Soft_Vivid_Cool.cube` | Copyright: (C) Copyright 2017 PremiumBeat |
+| `Dark_Soft_Vivid_Cool_2.cube` | Copyright: (C) Copyright 2017 PremiumBeat |
+| `Dark_Soft_Vivid_Warm.cube` | Copyright: (C) Copyright 2017 PremiumBeat.com |
+| `Dark_Soft_Vivid_Warm_2.cube` | Copyright: (C) Copyright 2017 PremiumBeat.com |
+| `Dark_Vivid_Cinematic.cube` | Copyright: (C) Copyright 2017 PremiumBeat |
+| `Dark_Vivid_Magenta_Tint_Cinematic.cube` | Copyright: (C) Copyright 2017 PremiumBeat |
+| `High_Contrast_Cinematic.cube` | Copyright: (C) Copyright 2017 PremiumBeat |
+| `High_Contrast_Cinematic_Cine_Grade.cube` | Copyright Tim Martin Presetpro.com StockPresets.com |
+| `High_Contrast_Cinematic_Ektachrome.cube` | Copyright: (C) Copyright 2022 Tim Martin and Presetpro.com |
+| `High_Contrast_Muted_Cool_Green_Tint.cube` | Copyright: (C) Copyright 2017 PremiumBeat.com |
+| `High_Contrast_Vivid_Warm_Cinematic_2.cube` | Copyright: (C) Copyright 2017 PremiumBeat |
+| `High_Contrast_Vivid_Warm_Cinematic_Moody_Grade.cube` | Copyright: (C) Copyright 2022 Tim Martin and Presetpro.com |
+| `Vintage Color.cube` | Copyright: (c) Copyright Studio Orange |
