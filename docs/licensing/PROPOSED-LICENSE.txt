@@ -1,0 +1,87 @@
+DRAFT FOR REVIEW ONLY — NOT AN ACTIVE LICENSE
+This proposal does not replace the repository LICENSE or grant or revoke rights.
+Remove this draft notice only as part of a reviewed, explicit licensing transition.
+
+VRGameDevGirl Personal Use and Commercial License — Version 1.0
+Copyright (c) 2026 Jean Thompson (VRGameDevGirl). All rights reserved.
+
+1. Scope
+"Licensor" means Jean Thompson. "Software" means only original code for which
+Licensor owns the copyright or has express authority to offer these terms, in
+versions explicitly released under this license. It includes covered modifications
+and portions of that code. It does not include ComfyUI, third-party contributions
+without relicensing permission, dependencies, vendored code, model weights,
+checkpoints, LoRAs, datasets, or other separately licensed materials. Their own
+licenses continue to govern them. This license grants no rights in those materials
+and cannot override their license requirements.
+
+2. Free personal use
+Subject to these terms, Licensor grants individuals a worldwide, non-exclusive,
+royalty-free license to access, download, run, copy, study, and modify the Software
+solely for their own personal, noncommercial activities. Examples include private
+experimentation, learning, hobbies, and sharing nonmonetized personal creations.
+
+You may redistribute the covered Software, including your modifications, free of
+charge for the same personal, noncommercial purposes, provided you include this
+license, preserve copyright and attribution notices, identify your modifications,
+and do not grant broader rights in Licensor's code. Recipients receive their rights
+in Licensor's code directly under these terms. No trademark or endorsement rights
+are granted.
+
+3. Commercial use requires a separate paid license
+The free grant does not authorize Commercial Use. Before Commercial Use, you must
+obtain a separate written commercial license directly from Licensor and pay the
+fees required by that agreement. A donation or payment by itself is not a license.
+Publishing source code does not remove this requirement.
+
+"Commercial Use" means using the Software, or covered modifications, for or on
+behalf of a business, as part of paid employment or client work, or in an activity
+intended to obtain revenue, compensation, or commercial advantage. This includes:
+- selling, licensing, or monetizing content produced using the Software;
+- videos or other content supported by advertising, sponsorships, subscriptions,
+  paywalls, or affiliate revenue;
+- paid production, consulting, commissions, training, or other client services;
+- operating hosted services, APIs, SaaS, paid access, or commercial wrappers;
+- incorporating or distributing the Software in commercial products or services;
+- internal business production, development, evaluation, or marketing.
+The requirement applies even if the activity has not yet earned money or made a
+profit. No revenue threshold or free commercial allowance is granted here.
+
+Commercial licensing contact: [LICENSOR TO PROVIDE EMAIL OR SALES PAGE].
+Pricing, duration, users, deployment rights, and any output-related permissions
+must be stated in the separate written agreement; none are implied by this text.
+
+4. Generated content and third-party rights
+Licensor claims no ownership of your generated images, videos, audio, text, or other
+outputs merely because you used the Software. The commercial-use condition concerns
+your use of the Software to produce or prepare monetized or commercial content; it
+does not impose this software license on the output itself. You remain responsible
+for applicable model licenses, input rights, and other third-party rights. A paid
+license for this Software does not grant commercial rights in a model or its outputs.
+
+5. Earlier releases and other licenses
+These terms apply only to versions expressly offered under them. They do not revoke,
+restrict, or replace permissions already granted for earlier releases under AGPL,
+GPL, MIT, or another license. Users may continue to exercise those earlier rights
+under the applicable earlier terms. This license does not purport to relicense
+code owned by others or negate copyleft obligations.
+
+6. Termination
+Your rights under this license terminate if you materially breach its terms. On
+termination, stop using and distributing the covered Software unless Licensor
+reinstates your rights in writing or you hold another applicable license. This does
+not terminate independent rights you already hold under another license.
+
+7. Disclaimer and limitation of liability
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE SOFTWARE IS PROVIDED "AS IS",
+WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. LICENSOR
+IS NOT LIABLE FOR CLAIMS, DAMAGES, OR OTHER LIABILITY ARISING FROM THE SOFTWARE OR
+ITS USE, WHETHER IN CONTRACT, TORT, OR OTHERWISE. NOTHING HERE EXCLUDES LIABILITY
+OR RIGHTS THAT APPLICABLE LAW DOES NOT ALLOW TO BE EXCLUDED.
+
+8. Reserved rights
+Rights not expressly granted are reserved. No term prevents uses permitted by
+applicable law without a license. If a provision is unenforceable, the remaining
+provisions apply to the extent permitted by law. A separate written commercial
+agreement controls where its terms conflict with this license for its licensee.
